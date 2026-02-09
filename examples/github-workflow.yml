@@ -1,0 +1,35 @@
+# Iara Code Reviewer - GitHub Actions Workflow
+# Copie este arquivo para .github/workflows/iara-review.yml no seu repositorio.
+#
+# Pre-requisitos:
+#   1. Adicione OPENROUTER_API_KEY como secret do repositorio
+#      (Settings > Secrets and variables > Actions > New repository secret)
+#   2. GITHUB_TOKEN eh fornecido automaticamente pelo GitHub Actions
+
+name: Iara Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    name: AI Code Review
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Iara Code Review
+        uses: felipefernandes/iara@v1
+        with:
+          openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          # model: 'google/gemini-2.0-flash-exp:free'  # Opcional: forcar modelo
+          # config_path: '.iara.json'                    # Opcional: caminho do config
+          # post_comment: 'true'                         # Opcional: postar comentario no PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

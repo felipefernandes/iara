@@ -1,0 +1,32 @@
+name: 'Iara Code Reviewer'
+description: 'AI-powered code review for Pull Requests using OpenRouter LLMs. Reviews for bugs, security issues, and performance problems.'
+author: 'Felipe Fernandes'
+
+branding:
+  icon: 'eye'
+  color: 'blue'
+
+inputs:
+  openrouter_api_key:
+    description: 'OpenRouter API key for LLM access'
+    required: true
+  model:
+    description: 'LLM model to use (e.g., google/gemini-2.0-flash-exp:free). Defaults to auto-fallback.'
+    required: false
+    default: ''
+  config_path:
+    description: 'Path to .iara.json config file'
+    required: false
+    default: '.iara.json'
+  post_comment:
+    description: 'Whether to post review as PR comment (true/false)'
+    required: false
+    default: 'true'
+
+outputs:
+  review:
+    description: 'The code review output from Iara'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'

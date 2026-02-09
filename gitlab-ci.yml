@@ -1,29 +1,54 @@
-# GitLab CI Template para Iara
-# Inclua este arquivo no seu .gitlab-ci.yml ou copie o conteúdo.
+# GitLab CI Template para Iara Code Reviewer
+# Copie este conteudo para o seu .gitlab-ci.yml ou use include.
+#
+# Variaveis necessarias (Settings > CI/CD > Variables):
+#   - OPENROUTER_API_KEY: Chave da API OpenRouter (obrigatoria)
+#   - GITLAB_TOKEN: Personal/Project Access Token com scope 'api' (para comentarios no MR)
 
 stages:
   - review
 
-variables:
-  # Configure OPENROUTER_API_KEY nas variáveis de CI/CD do projeto (Settings > CI/CD > Variables)
-  IARA_IMAGE: "python:3.11-slim" 
-
 iara_code_review:
   stage: review
-  image: $IARA_IMAGE
+  image: python:3.11-slim
   script:
-    - pip install requests # Se houver dependências extras (atualmente iara é stdlib only + requests se usar openrouter client, mas o script atual é stdlib)
-    # Na verdade o script atual só usa urllib, então nem precisa de pip install se o python image tiver tudo.
-    
-    # Opção 1: Scan completo (Ideal para agendamentos noturnos)
-    # - python ai-codereview.py --scan ./Assets/Scripts
-    
-    # Opção 2: Review de Diff (Merge Requests)
-    # Precisa de git instalado
-    - apt-get update && apt-get install -y git
+    - apt-get update && apt-get install -y --no-install-recommends git curl
+    - pip install iara-reviewer
+
+    # Gera o diff do Merge Request
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
     - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-    - python ai-codereview.py
+
+    # Executa a review
+    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
+    - cat /tmp/iara_stderr.txt || true
+    - echo "$REVIEW"
+
+    # Posta comentario no Merge Request via GitLab API
+    - |
+      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
+        echo "Postando review no MR #${CI_MERGE_REQUEST_IID}..."
+        PAYLOAD=$(python3 -c "
+      import sys, json
+      review = '''$REVIEW'''
+      body = '## 🧜‍♀️ Iara Code Review\n\n' + review + '\n\n---\n*Reviewed by [Iara](https://github.com/felipefernandes/iara) - AI Code Reviewer*'
+      print(json.dumps({'body': body}))
+      ")
+        HTTP_CODE=$(curl -s -o /tmp/gl_response.txt -w "%{http_code}" \
+          -X POST \
+          -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes")
+        if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+          echo "Review postada com sucesso no MR #${CI_MERGE_REQUEST_IID}."
+        else
+          echo "Falha ao postar comentario (HTTP ${HTTP_CODE})"
+          cat /tmp/gl_response.txt
+        fi
+      else
+        echo "Comentario no MR desabilitado (GITLAB_TOKEN nao configurado ou review vazia)."
+      fi
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

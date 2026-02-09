@@ -9,6 +9,7 @@ Iara é uma ferramenta de revisão de código automatizada, agnóstica a projeto
 - **Fallback Inteligente**: Tenta modelos gratuitos automaticamente se o preferido falhar.
 - **Rules-Based (Estático)**: Identifica padrões perigosos instantaneamente sem gastar tokens (ex: `GetComponent` em loops no Unity).
 - **LLM-Based (Inteligente)**: Usa IA para entender a lógica, segurança e contexto, indo além da sintaxe.
+- **GitHub + GitLab**: Integração nativa com ambas as plataformas, com comentários automáticos em PRs/MRs.
 
 ## 🧠 Capacidades
 
@@ -38,43 +39,58 @@ A Iara combina diferentes tipos de análise para uma revisão completa:
     - Erros de tratamento de exceções.
     - Sugestões de refatoração para legibilidade.
 
+---
+
 ## 📦 Instalação
 
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/seu-usuario/iara-bot-reviewer.git
-   cd iara-bot-reviewer
-   ```
+### Via pip (Recomendado)
 
-2. Configure a chave de API (OpenRouter):
-   ```bash
-   # Linux/Mac
-   export OPENROUTER_API_KEY="sk-or-..."
-   
-   # Windows (PowerShell)
-   $env:OPENROUTER_API_KEY="sk-or-..."
-   ```
+```bash
+pip install iara-reviewer
+```
+
+Após instalar, o comando `iara` fica disponível globalmente:
+
+```bash
+git diff main | iara
+```
+
+### Via clone (Desenvolvimento)
+
+```bash
+git clone https://github.com/felipefernandes/iara.git
+cd iara
+pip install -e .
+```
+
+### Configurar chave de API
+
+```bash
+# Linux/Mac
+export OPENROUTER_API_KEY="sk-or-..."
+
+# Windows (PowerShell)
+$env:OPENROUTER_API_KEY="sk-or-..."
+```
+
+Obtenha sua chave gratuita em [openrouter.ai](https://openrouter.ai/).
+
+---
 
 ## ⚙️ Configuração
 
-Crie um arquivo `.iara.json` na raiz do seu projeto. Você pode copiar o exemplo:
-
-```bash
-cp iara-example.json .iara.json
-```
-
-### Exemplo de `.iara.json`:
+Crie um arquivo `.iara.json` na raiz do seu projeto:
 
 ```json
 {
   "project": {
-    "name": "Meu Jogo Unity",
-    "description": "Um RPG mobile feito em Unity.",
-    "tech_stack": ["C#", "Unity", "Android"]
+    "name": "Meu Projeto",
+    "description": "Descrição do projeto.",
+    "tech_stack": ["Python"]
   },
   "review": {
-    "focus_areas": ["Performance", "Memory Management"],
-    "ignore_patterns": ["Assets/Plugins/*"]
+    "focus_areas": ["Performance", "Security"],
+    "ignore_patterns": []
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
@@ -83,64 +99,172 @@ cp iara-example.json .iara.json
 }
 ```
 
+Exemplo pronto disponível em `iara-example.json`.
+
+---
+
 ## 🏃 Como Usar
 
 ### Via Pipe (Git Diff)
 
-A forma mais comum de uso é enviando um diff via stdin:
-
 ```bash
-git diff main | python ai-codereview.py
+git diff main | iara
 ```
 
 ### Via Variável de Ambiente
 
-Você também pode passar o diff via variável `PR_DIFF`:
-
 ```bash
-# Windows PowerShell
-$env:PR_DIFF = git diff main | Out-String
-python ai-codereview.py
+export PR_DIFF=$(git diff main)
+iara
 ```
 
-### Modo Scan
-Para analisar um diretório inteiro (útil para código legado ou análise estática):
+### Modo Scan (Análise Estática)
 
 ```bash
-python ai-codereview.py --scan ./caminho/do/projeto
+iara --scan ./caminho/do/projeto
 ```
 
-Isso ativará extensões locais (como a de Unity) para identificar problemas sem gastar tokens de LLM desnecessariamente.
-
-### Via Forçando um Modelo
-
-Você pode sobrescrever o modelo configurado via variável de ambiente:
+### Forçando um Modelo
 
 ```bash
-# Usa apenas o modelo especificado, sem fallback
-$env:IARA_MODEL="meta-llama/llama-3.2-3b-instruct:free"
+export IARA_MODEL="meta-llama/llama-3.2-3b-instruct:free"
+git diff | iara
+```
+
+### Retrocompatibilidade
+
+O script `ai-codereview.py` continua funcionando para quem já o utiliza:
+
+```bash
 git diff | python ai-codereview.py
 ```
 
+---
 
-## 🦊 GitLab CI
+## 🐙 Integração GitHub
 
-Adicione o seguinte job ao seu `.gitlab-ci.yml`:
+Adicione a Iara ao seu repositório GitHub em **2 passos**:
+
+### 1. Configurar o secret
+
+Vá em **Settings > Secrets and variables > Actions > New repository secret** e adicione:
+
+- Nome: `OPENROUTER_API_KEY`
+- Valor: sua chave da API OpenRouter
+
+### 2. Criar o workflow
+
+Crie o arquivo `.github/workflows/iara-review.yml`:
 
 ```yaml
-review:
+name: Iara Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    name: AI Code Review
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Iara Code Review
+        uses: felipefernandes/iara@v1
+        with:
+          openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+A Iara vai automaticamente:
+
+- Revisar o diff do Pull Request
+- Postar um comentário com o resultado da review
+
+### Opções adicionais
+
+```yaml
+- uses: felipefernandes/iara@v1
+  with:
+    openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+    model: 'google/gemini-2.0-flash-exp:free'   # Forçar modelo
+    config_path: '.iara.json'                     # Caminho do config
+    post_comment: 'true'                          # Postar comentário (default: true)
+```
+
+---
+
+## 🦊 Integração GitLab
+
+### 1. Configurar variáveis
+
+Vá em **Settings > CI/CD > Variables** e adicione:
+
+- `OPENROUTER_API_KEY`: Chave da API OpenRouter
+- `GITLAB_TOKEN`: Personal/Project Access Token com scope `api` (necessário para comentários no MR)
+
+### 2. Adicionar ao `.gitlab-ci.yml`
+
+```yaml
+stages:
+  - review
+
+iara_code_review:
+  stage: review
   image: python:3.11-slim
   script:
-    - apt-get update && apt-get install -y git
-    - git fetch origin main
-    - export PR_DIFF=$(git diff origin/main...HEAD)
-    - python ai-codereview.py
+    - apt-get update && apt-get install -y --no-install-recommends git curl
+    - pip install iara-reviewer
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
+    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
+    - echo "$REVIEW"
+    - |
+      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
+        PAYLOAD=$(python3 -c "
+      import sys, json
+      review = '''$REVIEW'''
+      body = '## 🧜‍♀️ Iara Code Review\n\n' + review + '\n\n---\n*Reviewed by Iara - AI Code Reviewer*'
+      print(json.dumps({'body': body}))
+      ")
+        curl -s -X POST \
+          -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"
+      fi
+  allow_failure: true
   rules:
-    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
-## 🧪 Testes
 
-Para rodar os testes unitários:
+A Iara vai automaticamente:
+
+- Revisar o diff do Merge Request
+- Postar um comentário com o resultado da review no MR
+
+Um template completo está disponível em `gitlab-ci.yml`.
+
+---
+
+## 🔧 Qualquer CI (Jenkins, CircleCI, etc.)
+
+```bash
+pip install iara-reviewer
+export OPENROUTER_API_KEY="sk-or-..."
+git diff main...HEAD | iara
+```
+
+---
+
+## 🧪 Testes
 
 ```bash
 python -m unittest discover tests
