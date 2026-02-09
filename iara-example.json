@@ -1,0 +1,15 @@
+{
+  "project": {
+    "name": "Meu Projeto Incrível",
+    "description": "Uma API RESTful feita com FastAPI e PostgreSQL.",
+    "tech_stack": ["Python", "FastAPI", "PostgreSQL", "Docker"]
+  },
+  "review": {
+    "focus_areas": ["Security", "Clean Code", "Error Handling"],
+    "ignore_patterns": ["tests/*", "migrations/*"]
+  },
+  "model": {
+    "preferred": "google/gemini-2.0-flash-exp:free",
+    "fallback_enabled": true
+  }
+}

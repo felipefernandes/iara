@@ -1,0 +1,29 @@
+# GitLab CI Template para Iara
+# Inclua este arquivo no seu .gitlab-ci.yml ou copie o conteúdo.
+
+stages:
+  - review
+
+variables:
+  # Configure OPENROUTER_API_KEY nas variáveis de CI/CD do projeto (Settings > CI/CD > Variables)
+  IARA_IMAGE: "python:3.11-slim" 
+
+iara_code_review:
+  stage: review
+  image: $IARA_IMAGE
+  script:
+    - pip install requests # Se houver dependências extras (atualmente iara é stdlib only + requests se usar openrouter client, mas o script atual é stdlib)
+    # Na verdade o script atual só usa urllib, então nem precisa de pip install se o python image tiver tudo.
+    
+    # Opção 1: Scan completo (Ideal para agendamentos noturnos)
+    # - python ai-codereview.py --scan ./Assets/Scripts
+    
+    # Opção 2: Review de Diff (Merge Requests)
+    # Precisa de git instalado
+    - apt-get update && apt-get install -y git
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
+    - python ai-codereview.py
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

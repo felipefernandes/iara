@@ -1,0 +1,8 @@
+# Iara Code Reviewer
+# ------------------
+# Este projeto não possui dependências externas de runtime.
+# Ele roda com Python 3.8+ usando apenas a Biblioteca Padrão (urllib, json, re, etc).
+
+# Dependências de Desenvolvimento (Opcionais)
+# black  # Formatação de código
+# flake8 # Linter

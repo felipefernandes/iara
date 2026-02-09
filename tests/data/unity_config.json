@@ -1,0 +1,10 @@
+{
+    "project": {
+        "name": "Unity Test Project",
+        "description": "Test",
+        "tech_stack": [
+            "Unity",
+            "C#"
+        ]
+    }
+}
