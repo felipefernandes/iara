@@ -1,19 +1,6 @@
 import unittest
-import sys
-import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import importlib.util
-
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-script_path = os.path.join(project_root, "ai-codereview.py")
-
-spec = importlib.util.spec_from_file_location("ai_codereview", script_path)
-ai_codereview = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(ai_codereview)
-
-generate_system_prompt = ai_codereview.generate_system_prompt
+from iara.prompt import generate_system_prompt
 
 class TestPrompt(unittest.TestCase):
     def test_generate_prompt_generic_default(self):
@@ -48,8 +35,6 @@ class TestPrompt(unittest.TestCase):
         self.assertIn("Unity", prompt)
         self.assertIn("C#", prompt)
         self.assertIn("mobile game", prompt)
-        # We expect some Unity specific keywords if logic is implemented
-        # e.g. self.assertIn("GetComponent", prompt) 
 
 if __name__ == '__main__':
     unittest.main()
