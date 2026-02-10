@@ -5,7 +5,7 @@ import sys
 import json
 import getpass
 
-from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS
+from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS, _load_global_config
 from iara.config import save_config
 from iara.prompt import LANGUAGE_MAP
 
@@ -204,8 +204,9 @@ def _save_configs(api_key, provider, language, project, review):
         save_config(local_config, config_path)
         print("  Saved .iara.json in current directory.")
 
-    # 2. Save API key in global config
-    global_config = {f"{provider}_api_key": api_key}
+    # 2. Save API key in global config (merge with existing to preserve other providers' keys)
+    global_config = _load_global_config()
+    global_config[f"{provider}_api_key"] = api_key
     if provider == "openrouter":
         global_config["api_key"] = api_key
     save_global_config(global_config)
