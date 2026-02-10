@@ -1,6 +1,6 @@
 """Iara - Revisora de Codigo com IA"""
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 from iara.config import load_config, DEFAULT_CONFIG
 from iara.prompt import generate_system_prompt
