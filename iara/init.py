@@ -1,4 +1,4 @@
-"""Wizard interativo de setup da Iara."""
+"""Interactive setup wizard for Iara."""
 
 import os
 import sys
@@ -20,7 +20,7 @@ SUGGESTED_LANGUAGES = ["en", "pt-br", "es", "fr", "de", "ja", "zh"]
 
 
 def run_init():
-    """Executa o wizard interativo de setup."""
+    """Run the interactive setup wizard."""
     print()
     print("  Iara - AI Code Reviewer Setup")
     print("  " + "=" * 30)
@@ -45,13 +45,13 @@ def run_init():
 
 
 def _step_api_key():
-    """Solicita e valida a API key."""
+    """Prompt and validate the API key."""
     print()
     print("  Step 1: API Key")
     print("  Get your free key at: https://openrouter.ai/keys")
     print()
 
-    # Verifica se key ja existe
+    # Check if key already exists
     existing_key, source = resolve_api_key()
     if existing_key:
         masked = _mask_key(existing_key)
@@ -62,7 +62,7 @@ def _step_api_key():
             return existing_key
         print()
 
-    # Solicita nova key
+    # Ask for new key
     while True:
         try:
             api_key = getpass.getpass("  Enter your OpenRouter API key: ").strip()
@@ -101,7 +101,7 @@ def _step_language():
 
 
 def _step_project_config():
-    """Solicita configuracao do projeto."""
+    """Prompt for project configuration."""
     print()
     print("  Step 3: Project Configuration")
     print()
@@ -124,7 +124,7 @@ def _step_project_config():
 
 
 def _step_review_config():
-    """Solicita preferencias de review."""
+    """Prompt for review preferences."""
     print()
     print("  Step 4: Review Preferences")
     print()
@@ -146,10 +146,10 @@ def _step_review_config():
 
 
 def _save_configs(api_key, language, project, review):
-    """Salva configs local e global."""
+    """Save local and global configs."""
     print()
 
-    # 1. Salva .iara.json local
+    # 1. Save local .iara.json
     local_config = {
         "project": project,
         "review": review,
@@ -173,13 +173,13 @@ def _save_configs(api_key, language, project, review):
         save_config(local_config, config_path)
         print("  Saved .iara.json in current directory.")
 
-    # 2. Salva API key no config global
+    # 2. Save API key in global config
     save_global_config({"api_key": api_key})
     print("  Saved API key to ~/.iara/config.json")
 
 
 def _show_next_steps():
-    """Mostra proximos passos."""
+    """Show next steps."""
     print()
     print("  Setup complete!")
     print()
@@ -191,7 +191,7 @@ def _show_next_steps():
 
 
 def _mask_key(key):
-    """Mascara a key para exibicao."""
+    """Mask key for display."""
     if len(key) > 12:
         return key[:8] + "..." + key[-4:]
     return "***"

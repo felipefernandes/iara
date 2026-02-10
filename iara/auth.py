@@ -1,4 +1,4 @@
-"""Resolucao de API key e gerenciamento de configuracao global."""
+"""API key resolution and global configuration management."""
 
 import os
 import json
@@ -10,25 +10,25 @@ GLOBAL_CONFIG_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.json")
 
 def resolve_api_key():
     """
-    Resolve a API key por ordem de prioridade.
-    Retorna (api_key, source) onde source eh 'env', 'config' ou 'none'.
+    Resolve API key by priority order.
+    Returns (api_key, source) where source is 'env', 'config', or 'none'.
     """
-    # 1. Variavel de ambiente (maior prioridade - CI/CD)
+    # 1. Environment variable (highest priority - CI/CD)
     env_key = os.environ.get("OPENROUTER_API_KEY")
     if env_key:
         return env_key, "env"
 
-    # 2. Config global (~/.iara/config.json)
+    # 2. Global config (~/.iara/config.json)
     config_key = _load_global_config().get("api_key")
     if config_key:
         return config_key, "config"
 
-    # 3. Nao encontrada
+    # 3. Not found
     return None, "none"
 
 
 def _load_global_config():
-    """Carrega o config global de ~/.iara/config.json."""
+    """Load global config from ~/.iara/config.json."""
     if not os.path.exists(GLOBAL_CONFIG_PATH):
         return {}
     try:
@@ -39,13 +39,13 @@ def _load_global_config():
 
 
 def save_global_config(config):
-    """Salva config em ~/.iara/config.json com permissoes restritas."""
+    """Save config to ~/.iara/config.json with restricted permissions."""
     os.makedirs(GLOBAL_CONFIG_DIR, exist_ok=True)
 
     with open(GLOBAL_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
-    # Permissoes restritas (Unix only, ignorado no Windows)
+    # Restricted permissions (Unix only, ignored on Windows)
     try:
         os.chmod(GLOBAL_CONFIG_PATH, stat.S_IRUSR | stat.S_IWUSR)
     except (OSError, AttributeError):
@@ -54,8 +54,8 @@ def save_global_config(config):
 
 def validate_api_key(api_key):
     """
-    Valida uma API key chamando OpenRouter /api/v1/models.
-    Retorna (is_valid, error_message).
+    Validate an API key by calling OpenRouter /api/v1/models.
+    Returns (is_valid, error_message).
     """
     import urllib.request
     import urllib.error
@@ -75,9 +75,9 @@ def validate_api_key(api_key):
             return False, "Unexpected status: %d" % response.status
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            return False, "API key invalida (401 Unauthorized)"
+            return False, "Invalid API key (401 Unauthorized)"
         return False, "HTTP Error %d" % e.code
     except urllib.error.URLError as e:
-        return False, "Erro de conexao: %s" % e.reason
+        return False, "Connection error: %s" % e.reason
     except Exception as e:
-        return False, "Erro inesperado: %s" % e
+        return False, "Unexpected error: %s" % e

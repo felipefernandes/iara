@@ -1,11 +1,11 @@
-"""Comando de status de autenticacao da Iara."""
+"""Authentication status command for Iara."""
 
 import sys
 from iara.auth import resolve_api_key, validate_api_key
 
 
 def run_auth_status():
-    """Mostra o status atual de autenticacao."""
+    """Show current authentication status."""
     api_key, source = resolve_api_key()
 
     print()
@@ -23,7 +23,7 @@ def run_auth_status():
         print()
         sys.exit(1)
 
-    # Mascara a key
+    # Mask the key
     if len(api_key) > 12:
         masked = api_key[:8] + "..." + api_key[-4:]
     else:
@@ -38,7 +38,7 @@ def run_auth_status():
     print("  Source: %s" % source_labels.get(source, source))
     print()
 
-    # Valida
+    # Validate
     print("  Validating...", end=" ", flush=True)
     is_valid, error = validate_api_key(api_key)
     if is_valid:

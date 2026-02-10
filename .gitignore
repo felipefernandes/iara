@@ -6,3 +6,4 @@ dist/
 build/
 .eggs/
 nul
+.claude/settings.local.json

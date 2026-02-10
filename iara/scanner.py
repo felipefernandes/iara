@@ -1,4 +1,4 @@
-"""Scanning de diretorio com analise estatica via extensoes."""
+"""Directory scanning with static analysis via extensions."""
 
 import os
 import sys
@@ -7,12 +7,12 @@ import re
 
 def scan_directory(directory: str, config: dict) -> str:
     """
-    Escaneia um diretorio recursivamente buscando arquivos relevantes
-    e aplicando regras de analise estatica (Regex) ou LLM (se configurado).
+    Recursively scan a directory for relevant files
+    and apply static analysis rules (Regex) or LLM (if configured).
     """
     project_stack = config.get("project", {}).get("tech_stack", [])
 
-    # Determina extensoes a buscar com base na stack
+    # Determine file extensions to search based on stack
     extensions = []
     if "Unity" in project_stack or "C#" in project_stack:
         extensions.append(".cs")
@@ -20,19 +20,19 @@ def scan_directory(directory: str, config: dict) -> str:
         extensions.append(".py")
 
     if not extensions:
-        return "⚠️ Nenhuma extensão relevante configurada para análise de scan (baseado na tech_stack)."
+        return "⚠️ No relevant extensions configured for scan analysis (based on tech_stack)."
 
     # Scanning Loop
     issues = []
 
-    # Carrega extensoes
+    # Load extensions
     extensions_loaded = []
     if ".cs" in extensions:
         try:
             from iara.extensions.unity import UnityReviewer
             extensions_loaded.append(UnityReviewer())
         except ImportError:
-            print("⚠️ Extensão 'iara.extensions.unity' não encontrada.", file=sys.stderr)
+            print("⚠️ Extension 'iara.extensions.unity' not found.", file=sys.stderr)
 
     # scan
     for root, _, files in os.walk(directory):
@@ -51,9 +51,9 @@ def scan_directory(directory: str, config: dict) -> str:
                             issues.extend(found_issues)
 
                 except Exception as e:
-                     print(f"Erro ao ler {filepath}: {e}", file=sys.stderr)
+                     print(f"Error reading {filepath}: {e}", file=sys.stderr)
 
     if not issues:
-        return "✅ Nenhum problema crítico encontrado durante o scan."
+        return "✅ No critical issues found during scan."
 
-    return "🚨 **Resultados do Scan:**\n\n" + "\n".join(issues)
+    return "🚨 **Scan Results:**\n\n" + "\n".join(issues)

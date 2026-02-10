@@ -9,11 +9,11 @@ from iara.init import run_init, _step_api_key, _step_project_config, _step_revie
 
 class TestMaskKey(unittest.TestCase):
     def test_long_key(self):
-        """Keys longas sao mascaradas."""
+        """Long keys are masked."""
         self.assertEqual(_mask_key("sk-or-v1-abcdef1234567890"), "sk-or-v1...7890")
 
     def test_short_key(self):
-        """Keys curtas retornam ***."""
+        """Short keys return ***."""
         self.assertEqual(_mask_key("short"), "***")
 
 
@@ -37,7 +37,7 @@ class TestStepLanguage(unittest.TestCase):
 class TestStepProjectConfig(unittest.TestCase):
     @patch("builtins.input", side_effect=["", "", ""])
     def test_defaults(self, mock_input):
-        """Valores padrao sao usados quando input eh vazio."""
+        """Default values are used when input is empty."""
         config = _step_project_config()
         self.assertEqual(config["tech_stack"], ["Python"])
         self.assertEqual(config["description"], "A software project.")
@@ -45,7 +45,7 @@ class TestStepProjectConfig(unittest.TestCase):
 
     @patch("builtins.input", side_effect=["My Game", "C#, Unity", "A puzzle game"])
     def test_custom_values(self, mock_input):
-        """Valores customizados sao aceitos."""
+        """Custom values are accepted."""
         config = _step_project_config()
         self.assertEqual(config["name"], "My Game")
         self.assertEqual(config["tech_stack"], ["C#", "Unity"])
@@ -55,7 +55,7 @@ class TestStepProjectConfig(unittest.TestCase):
 class TestStepReviewConfig(unittest.TestCase):
     @patch("builtins.input", side_effect=["", ""])
     def test_defaults(self, mock_input):
-        """Valores padrao sao usados quando input eh vazio."""
+        """Default values are used when input is empty."""
         config = _step_review_config()
         self.assertEqual(config["focus_areas"], ["Logic", "Security", "Performance", "Clean Code",
                                                      "Error Handling", "Testing"])
@@ -63,7 +63,7 @@ class TestStepReviewConfig(unittest.TestCase):
 
     @patch("builtins.input", side_effect=["Security, Performance", "tests/*, docs/*"])
     def test_custom_values(self, mock_input):
-        """Valores customizados sao aceitos."""
+        """Custom values are accepted."""
         config = _step_review_config()
         self.assertEqual(config["focus_areas"], ["Security", "Performance"])
         self.assertEqual(config["ignore_patterns"], ["tests/*", "docs/*"])
@@ -88,18 +88,18 @@ class TestRunInit(unittest.TestCase):
                                   mock_resolve, mock_validate,
                                   mock_save_config, mock_save_global,
                                   mock_print):
-        """Fluxo completo com nova configuracao."""
+        """Full flow with new configuration."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("os.getcwd", return_value=tmpdir):
                 run_init()
 
-        # Verifica que save_config foi chamado
+        # Verify save_config was called
         mock_save_config.assert_called_once()
         config_arg = mock_save_config.call_args[0][0]
         self.assertEqual(config_arg["project"]["name"], "Test Project")
         self.assertEqual(config_arg["language"], "pt-br")
 
-        # Verifica que save_global_config foi chamado com a key
+        # Verify save_global_config was called with the key
         mock_save_global.assert_called_once_with({"api_key": "sk-or-test-key"})
 
     @patch("iara.init.save_global_config")
@@ -116,7 +116,7 @@ class TestRunInit(unittest.TestCase):
     ])
     def test_reuse_existing_key(self, mock_input, mock_resolve,
                                  mock_save_config, mock_save_global):
-        """Reutiliza key existente quando usuario aceita."""
+        """Reuse existing key when user accepts."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("os.getcwd", return_value=tmpdir):
                 run_init()

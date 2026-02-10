@@ -12,6 +12,27 @@ from iara.models import OPENROUTER_API_URL, FREE_MODELS
 from iara.prompt import generate_system_prompt
 
 
+def _extract_error_message(status_code: int, body: str, model: str) -> str:
+    """Extract a user-friendly error message from an API error response."""
+    try:
+        data = json.loads(body)
+        msg = data.get("error", {}).get("message", "")
+    except (json.JSONDecodeError, AttributeError):
+        msg = ""
+
+    if status_code == 404:
+        return "model not available"
+    if status_code == 429:
+        return "rate limited — will retry with next model"
+    if status_code == 400 and "not a valid model" in msg.lower():
+        return "model ID no longer valid"
+    if status_code == 401:
+        return "invalid API key"
+    if msg:
+        return msg
+    return f"HTTP {status_code}"
+
+
 def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: str) -> str:
     """Try to review code with a specific model."""
     max_chars = 15000
@@ -59,7 +80,9 @@ def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: s
 
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8")
-        raise Exception(f"HTTP Error {e.code}: {error_body}")
+        # Extract friendly message from JSON error response
+        friendly_msg = _extract_error_message(e.code, error_body, model)
+        raise Exception(friendly_msg)
 
 
 def review_code(diff: str, api_key: str, config: dict) -> str:
@@ -89,25 +112,29 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
         models_to_try = [env_model]
 
     errors = []
+    total = len(models_to_try)
 
-    print(f"🔄 Starting review. Model queue: {models_to_try}", file=sys.stderr)
+    print(f"🔄 Starting review with {total} model(s)...", file=sys.stderr)
 
-    for model in models_to_try:
+    for i, model in enumerate(models_to_try, 1):
         try:
-            print(f"🔄 Trying model: {model}...", file=sys.stderr)
-            return review_code_with_model(diff, api_key, model, system_prompt)
+            print(f"🔄 [{i}/{total}] Trying {model}...", file=sys.stderr)
+            result = review_code_with_model(diff, api_key, model, system_prompt)
+            print(f"✅ Review completed with {model}.", file=sys.stderr)
+            return result
         except (urllib.error.HTTPError, urllib.error.URLError) as e:
             error_msg = str(e)
-            print(f"⚠️ Connection/HTTP error on model {model}: {error_msg}", file=sys.stderr)
+            print(f"   ⏭️  {model} — {error_msg}", file=sys.stderr)
             errors.append(f"{model}: {error_msg}")
             time.sleep(1)
         except Exception as e:
             error_msg = str(e)
-            print(f"⚠️ Unexpected error on model {model}: {error_msg}", file=sys.stderr)
+            print(f"   ⏭️  {model} — {error_msg}", file=sys.stderr)
             errors.append(f"{model}: {error_msg}")
             time.sleep(1)
 
             if env_model:
                 break
 
+    print("❌ All models failed.", file=sys.stderr)
     return f"❌ Could not review with any available model.\nErrors:\n" + "\n".join(errors)

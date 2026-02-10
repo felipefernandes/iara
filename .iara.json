@@ -20,5 +20,6 @@
   "model": {
     "preferred": null,
     "fallback_enabled": true
-  }
+  },
+  "language": "en"
 }
