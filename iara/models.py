@@ -1,9 +1,40 @@
 """Model definitions and API constants."""
 
-# OpenRouter API Configuration
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Provider configurations
+PROVIDER_CONFIGS = {
+    "openrouter": {
+        "base_url": "https://openrouter.ai/api/v1/chat/completions",
+        "auth_type": "bearer",
+        "extra_headers": {
+            "HTTP-Referer": "https://github.com/felipefernandes/iara",
+            "X-Title": "Iara Code Reviewer"
+        }
+    },
+    "openai": {
+        "base_url": "https://api.openai.com/v1/chat/completions",
+        "auth_type": "bearer",
+        "extra_headers": {}
+    },
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "auth_type": "bearer",
+        "extra_headers": {}
+    },
+    "anthropic": {
+        "base_url": "https://api.anthropic.com/v1/messages",
+        "auth_type": "x-api-key",
+        "extra_headers": {"anthropic-version": "2023-06-01"}
+    }
+}
 
-# Free models list — openrouter/free is the meta-router that auto-selects
+SUGGESTED_MODELS = {
+    "openrouter": ["openrouter/free", "anthropic/claude-opus-4-5", "openai/gpt-4o"],
+    "openai": ["gpt-4o", "gpt-4.5-preview", "o1"],
+    "gemini": ["gemini-2.5-flash", "gemini-2.5-pro"],
+    "anthropic": ["claude-opus-4-5-20250929", "claude-sonnet-4-5-20250929"]
+}
+
+# OpenRouter free models list — openrouter/free is the meta-router that auto-selects
 # the best available free model, so it's the primary choice.
 FREE_MODELS = [
     "openrouter/free",                                # Meta-router (auto-selects best free model)

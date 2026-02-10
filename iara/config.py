@@ -17,7 +17,8 @@ DEFAULT_CONFIG = {
     },
     "model": {
         "preferred": None,
-        "fallback_enabled": True
+        "fallback_enabled": True,
+        "provider": "openrouter"
     },
     "language": "en"
 }

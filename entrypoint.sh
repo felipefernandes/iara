@@ -7,6 +7,10 @@ set -e
 
 # --- Input Variables (from action.yml inputs) ---
 OPENROUTER_API_KEY="${INPUT_OPENROUTER_API_KEY}"
+OPENAI_API_KEY="${INPUT_OPENAI_API_KEY}"
+GEMINI_API_KEY="${INPUT_GEMINI_API_KEY}"
+ANTHROPIC_API_KEY="${INPUT_ANTHROPIC_API_KEY}"
+PROVIDER="${INPUT_PROVIDER:-openrouter}"
 IARA_MODEL="${INPUT_MODEL}"
 IARA_LANGUAGE="${INPUT_LANGUAGE}"
 CONFIG_PATH="${INPUT_CONFIG_PATH:-.iara.json}"
@@ -17,9 +21,26 @@ GITHUB_TOKEN="${GITHUB_TOKEN}"
 REPO="${GITHUB_REPOSITORY}"
 
 # --- Validate Required Inputs ---
-if [ -z "$OPENROUTER_API_KEY" ]; then
-  echo "::error::OPENROUTER_API_KEY is required. Add it as a repository secret."
-  exit 1
+if [ "$PROVIDER" = "openai" ]; then
+  if [ -z "$OPENAI_API_KEY" ]; then
+    echo "::error::OPENAI_API_KEY is required. Add it as a repository secret."
+    exit 1
+  fi
+elif [ "$PROVIDER" = "gemini" ]; then
+  if [ -z "$GEMINI_API_KEY" ]; then
+    echo "::error::GEMINI_API_KEY is required. Add it as a repository secret."
+    exit 1
+  fi
+elif [ "$PROVIDER" = "anthropic" ]; then
+  if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "::error::ANTHROPIC_API_KEY is required. Add it as a repository secret."
+    exit 1
+  fi
+else
+  if [ -z "$OPENROUTER_API_KEY" ]; then
+    echo "::error::OPENROUTER_API_KEY is required. Add it as a repository secret."
+    exit 1
+  fi
 fi
 
 # --- Determine PR Number ---
@@ -47,7 +68,17 @@ if [ -z "$DIFF" ] || [ "$DIFF" = "null" ]; then
 fi
 
 # --- Export for Iara ---
-export OPENROUTER_API_KEY
+if [ "$PROVIDER" = "openai" ]; then
+  export OPENAI_API_KEY
+elif [ "$PROVIDER" = "gemini" ]; then
+  export GEMINI_API_KEY
+elif [ "$PROVIDER" = "anthropic" ]; then
+  export ANTHROPIC_API_KEY
+else
+  export OPENROUTER_API_KEY
+fi
+
+export IARA_PROVIDER="$PROVIDER"
 export PR_DIFF="$DIFF"
 
 if [ -n "$IARA_MODEL" ]; then

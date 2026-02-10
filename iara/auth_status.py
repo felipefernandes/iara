@@ -1,12 +1,18 @@
 """Authentication status command for Iara."""
 
+import os
 import sys
-from iara.auth import resolve_api_key, validate_api_key
+from iara.auth import resolve_api_key, validate_api_key, PROVIDER_ENV_VARS
+from iara.config import load_config
 
 
 def run_auth_status():
     """Show current authentication status."""
-    api_key, source = resolve_api_key()
+    config = load_config()
+    env_provider = os.environ.get("IARA_PROVIDER")
+    provider = env_provider.lower() if env_provider else config.get("model", {}).get("provider", "openrouter")
+
+    api_key, source = resolve_api_key(provider)
 
     print()
     print("  Iara Auth Status")
@@ -19,7 +25,8 @@ def run_auth_status():
         print("  To configure, run:")
         print("    iara init")
         print("  Or set the environment variable:")
-        print("    export OPENROUTER_API_KEY='sk-or-...'")
+        env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
+        print("    export %s='sk-...'" % env_var)
         print()
         sys.exit(1)
 
@@ -29,22 +36,27 @@ def run_auth_status():
     else:
         masked = "***"
 
+    env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
     source_labels = {
-        "env": "Environment variable (OPENROUTER_API_KEY)",
+        "env": "Environment variable (%s)" % env_var,
         "config": "Global config (~/.iara/config.json)"
     }
 
-    print("  Key:    %s" % masked)
-    print("  Source: %s" % source_labels.get(source, source))
+    print("  Provider: %s" % provider)
+    print("  Key:      %s" % masked)
+    print("  Source:   %s" % source_labels.get(source, source))
     print()
 
     # Validate
-    print("  Validating...", end=" ", flush=True)
-    is_valid, error = validate_api_key(api_key)
-    if is_valid:
-        print("VALID")
+    if provider == "openrouter":
+        print("  Validating...", end=" ", flush=True)
+        is_valid, error = validate_api_key(api_key, provider)
+        if is_valid:
+            print("VALID")
+        else:
+            print("INVALID (%s)" % error)
+            sys.exit(1)
     else:
-        print("INVALID (%s)" % error)
-        sys.exit(1)
+        print("  Validation: SKIPPED (provider not validated locally)")
 
     print()

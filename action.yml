@@ -9,7 +9,20 @@ branding:
 inputs:
   openrouter_api_key:
     description: 'OpenRouter API key for LLM access'
-    required: true
+    required: false
+  openai_api_key:
+    description: 'OpenAI API key for LLM access'
+    required: false
+  gemini_api_key:
+    description: 'Google Gemini API key for LLM access'
+    required: false
+  anthropic_api_key:
+    description: 'Anthropic API key for LLM access'
+    required: false
+  provider:
+    description: 'LLM provider: openrouter (default), openai, gemini, anthropic'
+    required: false
+    default: 'openrouter'
   model:
     description: 'LLM model to use (e.g., google/gemini-2.0-flash-exp:free). Defaults to auto-fallback.'
     required: false

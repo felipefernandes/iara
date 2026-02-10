@@ -7,19 +7,31 @@ import stat
 GLOBAL_CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".iara")
 GLOBAL_CONFIG_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.json")
 
+PROVIDER_ENV_VARS = {
+    "openrouter": "OPENROUTER_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+}
 
-def resolve_api_key():
+def resolve_api_key(provider="openrouter"):
     """
     Resolve API key by priority order.
     Returns (api_key, source) where source is 'env', 'config', or 'none'.
     """
+    if isinstance(provider, str):
+        provider = provider.lower()
     # 1. Environment variable (highest priority - CI/CD)
-    env_key = os.environ.get("OPENROUTER_API_KEY")
+    env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
+    env_key = os.environ.get(env_var)
     if env_key:
         return env_key, "env"
 
     # 2. Global config (~/.iara/config.json)
-    config_key = _load_global_config().get("api_key")
+    config = _load_global_config()
+    config_key = config.get(f"{provider}_api_key")
+    if not config_key and provider == "openrouter":
+        config_key = config.get("api_key")
     if config_key:
         return config_key, "config"
 
@@ -52,13 +64,19 @@ def save_global_config(config):
         pass
 
 
-def validate_api_key(api_key):
+def validate_api_key(api_key, provider="openrouter"):
     """
     Validate an API key by calling OpenRouter /api/v1/models.
     Returns (is_valid, error_message).
     """
     import urllib.request
     import urllib.error
+
+    if isinstance(provider, str):
+        provider = provider.lower()
+
+    if provider != "openrouter":
+        return True, None
 
     url = "https://openrouter.ai/api/v1/models"
     headers = {
