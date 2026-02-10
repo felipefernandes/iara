@@ -8,7 +8,8 @@ import time
 import urllib.request
 import urllib.error
 
-from iara.models import OPENROUTER_API_URL, FREE_MODELS
+from iara.models import PROVIDER_CONFIGS, FREE_MODELS
+from iara.auth import normalize_provider, SUPPORTED_PROVIDERS
 from iara.prompt import generate_system_prompt
 
 
@@ -33,50 +34,88 @@ def _extract_error_message(status_code: int, body: str, model: str) -> str:
     return f"HTTP {status_code}"
 
 
-def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: str) -> str:
-    """Try to review code with a specific model."""
-    max_chars = 15000
-    if len(diff) > max_chars:
-        diff = diff[:max_chars] + "\n\n[... diff truncated due to size limit ...]"
+def _build_headers(api_key: str, provider: str) -> dict:
+    provider_cfg = PROVIDER_CONFIGS.get(provider, PROVIDER_CONFIGS["openrouter"])
+    headers = {"Content-Type": "application/json"}
 
-    payload = {
+    if provider_cfg["auth_type"] == "bearer":
+        headers["Authorization"] = f"Bearer {api_key}"
+    else:
+        headers["x-api-key"] = api_key
+
+    headers.update(provider_cfg["extra_headers"])
+    return headers
+
+
+def _build_payload(diff: str, model: str, system_prompt: str, provider: str) -> dict:
+    user_content = f"Review the following code diff:\n\n```diff\n{diff}\n```"
+
+    if provider == "anthropic":
+        return {
+            "model": model,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": user_content}],
+            "temperature": 0.3,
+            "max_tokens": 6000,
+        }
+
+    return {
         "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Review the following code diff:\n\n```diff\n{diff}\n```"}
+            {"role": "user", "content": user_content}
         ],
         "temperature": 0.3,
         "max_tokens": 6000,
     }
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-        "HTTP-Referer": "https://github.com/felipefernandes/iara",
-        "X-Title": "Iara Code Reviewer"
-    }
+
+def _extract_content(result: dict, provider: str) -> str:
+    if provider == "anthropic":
+        content_blocks = result.get("content", [])
+        if content_blocks and isinstance(content_blocks, list):
+            text = content_blocks[0].get("text")
+            if text:
+                return text
+        raise ValueError("API returned success but no 'content' text.")
+
+    if "choices" in result and len(result["choices"]) > 0:
+        content = result["choices"][0]["message"]["content"]
+        if content is None:
+            raise ValueError("API returned empty content.")
+        return content
+
+    raise ValueError("API returned success but no 'choices'.")
+
+
+def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: str, provider: str) -> str:
+    """Try to review code with a specific model."""
+    max_chars = 15000
+    if len(diff) > max_chars:
+        diff = diff[:max_chars] + "\n\n[... diff truncated due to size limit ...]"
+
+    provider_cfg = PROVIDER_CONFIGS.get(provider, PROVIDER_CONFIGS["openrouter"])
+    payload = _build_payload(diff, model, system_prompt, provider)
+    headers = _build_headers(api_key, provider)
 
     try:
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(OPENROUTER_API_URL, data=data, headers=headers)
+        req = urllib.request.Request(provider_cfg["base_url"], data=data, headers=headers)
 
         with urllib.request.urlopen(req, timeout=60) as response:
             result = json.loads(response.read().decode("utf-8"))
             if "error" in result:
-                 raise Exception(f"API Error: {result['error']}")
+                raise Exception(f"API Error: {result['error']}")
 
-            if "choices" in result and len(result["choices"]) > 0:
-                content = result["choices"][0]["message"]["content"]
+            content = _extract_content(result, provider)
 
-                # Strip <think> blocks (Common in DeepSeek R1)
-                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+            # Strip <think> blocks (Common in DeepSeek R1)
+            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
 
-                if not content:
-                    raise ValueError("Model returned empty content (or only <think> tags).")
+            if not content:
+                raise ValueError("Model returned empty content (or only <think> tags).")
 
-                return content
-            else:
-                raise ValueError("API returned success but no 'choices'.")
+            return content
 
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8")
@@ -93,15 +132,21 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
     system_prompt = generate_system_prompt(config)
 
     # Determine which model to use
-    preferred_model = os.environ.get("IARA_MODEL") or config.get("model", {}).get("preferred")
-    fallback_enabled = config.get("model", {}).get("fallback_enabled", True)
+    model_config = config.get("model", {})
+    preferred_model = os.environ.get("IARA_MODEL") or model_config.get("preferred")
+    provider = model_config.get("provider", "openrouter")
+    provider = normalize_provider(provider)
+    if not provider:
+        supported = ", ".join(sorted(SUPPORTED_PROVIDERS))
+        return "❌ Invalid provider configured. Supported providers: %s" % supported
+    fallback_enabled = model_config.get("fallback_enabled", True)
 
     models_to_try = []
 
     if preferred_model:
         models_to_try.append(preferred_model)
 
-    if fallback_enabled or not preferred_model:
+    if (fallback_enabled or not preferred_model) and provider == "openrouter":
         for m in FREE_MODELS:
             if m not in models_to_try:
                 models_to_try.append(m)
@@ -111,6 +156,12 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
     if env_model:
         models_to_try = [env_model]
 
+    if not models_to_try:
+        return (
+            "❌ No model configured for provider '%s'. "
+            "Set IARA_MODEL or model.preferred in .iara.json."
+        ) % provider
+
     errors = []
     total = len(models_to_try)
 
@@ -119,7 +170,7 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
     for i, model in enumerate(models_to_try, 1):
         try:
             print(f"🔄 [{i}/{total}] Trying {model}...", file=sys.stderr)
-            result = review_code_with_model(diff, api_key, model, system_prompt)
+            result = review_code_with_model(diff, api_key, model, system_prompt, provider)
             print(f"✅ Review completed with {model}.", file=sys.stderr)
             return result
         except (urllib.error.HTTPError, urllib.error.URLError) as e:

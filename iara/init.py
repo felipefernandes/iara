@@ -5,8 +5,8 @@ import sys
 import json
 import getpass
 
-from iara.auth import validate_api_key, save_global_config, resolve_api_key
-from iara.config import DEFAULT_CONFIG, save_config
+from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS
+from iara.config import save_config
 from iara.prompt import LANGUAGE_MAP
 
 
@@ -17,6 +17,13 @@ KNOWN_FOCUS_AREAS = ["Logic", "Security", "Performance", "Clean Code",
                      "Error Handling", "Testing"]
 
 SUGGESTED_LANGUAGES = ["en", "pt-br", "es", "fr", "de", "ja", "zh"]
+PROVIDER_OPTIONS = ["openrouter", "openai", "gemini", "anthropic"]
+PROVIDER_KEY_URLS = {
+    "openrouter": "https://openrouter.ai/keys",
+    "openai": "https://platform.openai.com/api-keys",
+    "gemini": "https://aistudio.google.com/app/apikey",
+    "anthropic": "https://console.anthropic.com/keys"
+}
 
 
 def run_init():
@@ -25,37 +32,42 @@ def run_init():
     print("  Iara - AI Code Reviewer Setup")
     print("  " + "=" * 30)
 
-    # --- Step 1: API Key ---
-    api_key = _step_api_key()
-
-    # --- Step 2: Language ---
+    # --- Step 1: Language ---
     language = _step_language()
 
-    # --- Step 3: Project Config ---
+    # --- Step 2: Provider ---
+    provider = _step_provider()
+
+    # --- Step 3: API Key ---
+    api_key = _step_api_key(provider)
+
+    # --- Step 4: Project Config ---
     project_config = _step_project_config()
 
-    # --- Step 4: Review Preferences ---
+    # --- Step 5: Review Preferences ---
     review_config = _step_review_config()
 
     # --- Save ---
-    _save_configs(api_key, language, project_config, review_config)
+    _save_configs(api_key, provider, language, project_config, review_config)
 
     # --- Next steps ---
     _show_next_steps()
 
 
-def _step_api_key():
+def _step_api_key(provider):
     """Prompt and validate the API key."""
     print()
-    print("  Step 1: API Key")
-    print("  Get your free key at: https://openrouter.ai/keys")
+    print("  Step 3: API Key")
+    key_url = PROVIDER_KEY_URLS.get(provider, PROVIDER_KEY_URLS["openrouter"])
+    print("  Get your key at: %s" % key_url)
     print()
 
     # Check if key already exists
-    existing_key, source = resolve_api_key()
+    existing_key, source = resolve_api_key(provider)
     if existing_key:
         masked = _mask_key(existing_key)
-        source_label = "env var" if source == "env" else "config"
+        env_label = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
+        source_label = env_label if source == "env" else "config"
         print("  Key found (%s): %s" % (source_label, masked))
         response = input("  Use existing key? [Y/n]: ").strip().lower()
         if response not in ("n", "no"):
@@ -65,7 +77,8 @@ def _step_api_key():
     # Ask for new key
     while True:
         try:
-            api_key = getpass.getpass("  Enter your OpenRouter API key: ").strip()
+            prompt_label = provider.upper()
+            api_key = getpass.getpass("  Enter your %s API key: " % prompt_label).strip()
         except (EOFError, KeyboardInterrupt):
             print()
             print("  Setup cancelled.")
@@ -76,7 +89,7 @@ def _step_api_key():
             continue
 
         print("  Validating...", end=" ", flush=True)
-        is_valid, error = validate_api_key(api_key)
+        is_valid, error = validate_api_key(api_key, provider)
         if is_valid:
             print("OK")
             return api_key
@@ -91,7 +104,7 @@ def _step_api_key():
 def _step_language():
     """Select review output language."""
     print()
-    print("  Step 2: Review Language")
+    print("  Step 1: Review Language")
     print()
 
     lang_display = ", ".join("%s (%s)" % (code, LANGUAGE_MAP.get(code, code)) for code in SUGGESTED_LANGUAGES)
@@ -100,10 +113,27 @@ def _step_language():
     return lang_input if lang_input else "en"
 
 
+def _step_provider():
+    """Select LLM provider."""
+    print()
+    print("  Step 2: LLM Provider")
+    print()
+
+    options = "openrouter (default, free), openai, gemini, anthropic"
+    print("  Options: %s" % options)
+
+    while True:
+        provider_input = input("  Provider [openrouter]: ").strip().lower()
+        provider = provider_input if provider_input else "openrouter"
+        if provider in PROVIDER_OPTIONS:
+            return provider
+        print("  Invalid provider. Choose from: %s" % ", ".join(PROVIDER_OPTIONS))
+
+
 def _step_project_config():
     """Prompt for project configuration."""
     print()
-    print("  Step 3: Project Configuration")
+    print("  Step 4: Project Configuration")
     print()
 
     default_name = os.path.basename(os.getcwd())
@@ -126,7 +156,7 @@ def _step_project_config():
 def _step_review_config():
     """Prompt for review preferences."""
     print()
-    print("  Step 4: Review Preferences")
+    print("  Step 5: Review Preferences")
     print()
 
     print("  Available: %s, All" % ", ".join(KNOWN_FOCUS_AREAS))
@@ -145,7 +175,7 @@ def _step_review_config():
     }
 
 
-def _save_configs(api_key, language, project, review):
+def _save_configs(api_key, provider, language, project, review):
     """Save local and global configs."""
     print()
 
@@ -155,7 +185,8 @@ def _save_configs(api_key, language, project, review):
         "review": review,
         "model": {
             "preferred": None,
-            "fallback_enabled": True
+            "fallback_enabled": True,
+            "provider": provider
         },
         "language": language
     }
@@ -174,7 +205,10 @@ def _save_configs(api_key, language, project, review):
         print("  Saved .iara.json in current directory.")
 
     # 2. Save API key in global config
-    save_global_config({"api_key": api_key})
+    global_config = {f"{provider}_api_key": api_key}
+    if provider == "openrouter":
+        global_config["api_key"] = api_key
+    save_global_config(global_config)
     print("  Saved API key to ~/.iara/config.json")
 
 

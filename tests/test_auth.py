@@ -4,7 +4,7 @@ import os
 import tempfile
 from unittest.mock import patch, MagicMock
 
-from iara.auth import resolve_api_key, validate_api_key, save_global_config, _load_global_config
+from iara.auth import resolve_api_key, validate_api_key, save_global_config, _load_global_config, normalize_provider
 
 
 class TestResolveApiKey(unittest.TestCase):
@@ -13,6 +13,13 @@ class TestResolveApiKey(unittest.TestCase):
         """Env var has highest priority."""
         key, source = resolve_api_key()
         self.assertEqual(key, "sk-or-test-key")
+        self.assertEqual(source, "env")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-openai-test-key"})
+    def test_resolve_from_env_openai(self):
+        """Provider-specific env var is used."""
+        key, source = resolve_api_key("openai")
+        self.assertEqual(key, "sk-openai-test-key")
         self.assertEqual(source, "env")
 
     @patch.dict(os.environ, {}, clear=True)
@@ -25,6 +32,14 @@ class TestResolveApiKey(unittest.TestCase):
         self.assertEqual(key, "sk-or-config-key")
         self.assertEqual(source, "config")
 
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("iara.auth._load_global_config", return_value={"openai_api_key": "sk-openai-config"})
+    def test_resolve_from_config_openai(self, mock_config):
+        """Provider-specific config key is used."""
+        key, source = resolve_api_key("openai")
+        self.assertEqual(key, "sk-openai-config")
+        self.assertEqual(source, "config")
+
     @patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-env-key"})
     @patch("iara.auth._load_global_config", return_value={"api_key": "sk-or-config-key"})
     def test_env_takes_precedence_over_config(self, mock_config):
@@ -34,6 +49,14 @@ class TestResolveApiKey(unittest.TestCase):
         self.assertEqual(source, "env")
 
     @patch.dict(os.environ, {}, clear=True)
+    @patch("iara.auth._load_global_config", return_value={"api_key": "sk-or-legacy"})
+    def test_openrouter_fallback_to_legacy_config(self, mock_config):
+        """OpenRouter falls back to legacy api_key field."""
+        key, source = resolve_api_key("openrouter")
+        self.assertEqual(key, "sk-or-legacy")
+        self.assertEqual(source, "config")
+
+    @patch.dict(os.environ, {}, clear=True)
     @patch("iara.auth._load_global_config", return_value={})
     def test_resolve_none(self, mock_config):
         """Returns None when no key is found."""
@@ -41,6 +64,21 @@ class TestResolveApiKey(unittest.TestCase):
         key, source = resolve_api_key()
         self.assertIsNone(key)
         self.assertEqual(source, "none")
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_invalid_provider_returns_none(self):
+        """Invalid provider returns none."""
+        key, source = resolve_api_key("invalid")
+        self.assertIsNone(key)
+        self.assertEqual(source, "none")
+
+
+class TestNormalizeProvider(unittest.TestCase):
+    def test_default_provider(self):
+        self.assertEqual(normalize_provider(None), "openrouter")
+
+    def test_invalid_provider(self):
+        self.assertIsNone(normalize_provider("not-a-provider"))
 
 
 class TestSaveGlobalConfig(unittest.TestCase):
@@ -69,6 +107,12 @@ class TestValidateApiKey(unittest.TestCase):
         mock_urlopen.return_value = mock_response
 
         is_valid, error = validate_api_key("sk-or-valid")
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+
+    def test_skip_validation_non_openrouter(self):
+        """Non-openrouter providers skip validation."""
+        is_valid, error = validate_api_key("sk-openai", provider="openai")
         self.assertTrue(is_valid)
         self.assertIsNone(error)
 

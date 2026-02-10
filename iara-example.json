@@ -10,7 +10,8 @@
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
-    "fallback_enabled": true
+    "fallback_enabled": true,
+    "provider": "openrouter"
   },
   "language": "en"
 }

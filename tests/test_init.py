@@ -4,7 +4,7 @@ import os
 import tempfile
 from unittest.mock import patch, call
 
-from iara.init import run_init, _step_api_key, _step_project_config, _step_review_config, _step_language, _mask_key
+from iara.init import run_init, _step_api_key, _step_project_config, _step_review_config, _step_language, _step_provider, _mask_key
 
 
 class TestMaskKey(unittest.TestCase):
@@ -32,6 +32,18 @@ class TestStepLanguage(unittest.TestCase):
     def test_uppercase_normalized(self, mock_input):
         """Input is lowercased."""
         self.assertEqual(_step_language(), "es")
+
+
+class TestStepProvider(unittest.TestCase):
+    @patch("builtins.input", return_value="")
+    def test_default_provider(self, mock_input):
+        """Default provider is openrouter."""
+        self.assertEqual(_step_provider(), "openrouter")
+
+    @patch("builtins.input", return_value="anthropic")
+    def test_custom_provider(self, mock_input):
+        """Custom provider is accepted."""
+        self.assertEqual(_step_provider(), "anthropic")
 
 
 class TestStepProjectConfig(unittest.TestCase):
@@ -78,6 +90,7 @@ class TestRunInit(unittest.TestCase):
     @patch("getpass.getpass", return_value="sk-or-test-key")
     @patch("builtins.input", side_effect=[
         "pt-br",            # language
+        "openrouter",       # provider
         "Test Project",     # project name
         "Python",           # tech stack
         "A test project",   # description
@@ -100,14 +113,18 @@ class TestRunInit(unittest.TestCase):
         self.assertEqual(config_arg["language"], "pt-br")
 
         # Verify save_global_config was called with the key
-        mock_save_global.assert_called_once_with({"api_key": "sk-or-test-key"})
+        mock_save_global.assert_called_once_with({
+            "openrouter_api_key": "sk-or-test-key",
+            "api_key": "sk-or-test-key"
+        })
 
     @patch("iara.init.save_global_config")
     @patch("iara.init.save_config")
     @patch("iara.init.resolve_api_key", return_value=("sk-or-existing", "config"))
     @patch("builtins.input", side_effect=[
-        "Y",                # use existing key
         "",                 # language (default en)
+        "openrouter",       # provider
+        "Y",                # use existing key
         "My Project",       # project name
         "",                 # tech stack (default)
         "",                 # description (default)
@@ -121,7 +138,10 @@ class TestRunInit(unittest.TestCase):
             with patch("os.getcwd", return_value=tmpdir):
                 run_init()
 
-        mock_save_global.assert_called_once_with({"api_key": "sk-or-existing"})
+        mock_save_global.assert_called_once_with({
+            "openrouter_api_key": "sk-or-existing",
+            "api_key": "sk-or-existing"
+        })
 
 
 if __name__ == "__main__":
