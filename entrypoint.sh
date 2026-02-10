@@ -21,6 +21,29 @@ GITHUB_TOKEN="${GITHUB_TOKEN}"
 REPO="${GITHUB_REPOSITORY}"
 
 # --- Validate Required Inputs ---
+KEY_COUNT=0
+KEY_LABELS=()
+if [ -n "$OPENROUTER_API_KEY" ]; then
+  KEY_COUNT=$((KEY_COUNT + 1))
+  KEY_LABELS+=("openrouter")
+fi
+if [ -n "$OPENAI_API_KEY" ]; then
+  KEY_COUNT=$((KEY_COUNT + 1))
+  KEY_LABELS+=("openai")
+fi
+if [ -n "$GEMINI_API_KEY" ]; then
+  KEY_COUNT=$((KEY_COUNT + 1))
+  KEY_LABELS+=("gemini")
+fi
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+  KEY_COUNT=$((KEY_COUNT + 1))
+  KEY_LABELS+=("anthropic")
+fi
+
+if [ "$KEY_COUNT" -gt 1 ]; then
+  echo "::warning::Multiple provider API keys provided (${KEY_LABELS[*]}). Using only '${PROVIDER}'."
+fi
+
 if [ "$PROVIDER" = "openai" ]; then
   if [ -z "$OPENAI_API_KEY" ]; then
     echo "::error::OPENAI_API_KEY is required. Add it as a repository secret."

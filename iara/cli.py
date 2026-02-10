@@ -7,7 +7,7 @@ import argparse
 from iara.config import load_config
 from iara.reviewer import review_code
 from iara.scanner import scan_directory
-from iara.auth import resolve_api_key, PROVIDER_ENV_VARS
+from iara.auth import resolve_api_key, PROVIDER_ENV_VARS, normalize_provider, SUPPORTED_PROVIDERS
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
     # Provider override from env var if set
     env_provider = os.environ.get("IARA_PROVIDER")
     if env_provider:
-        config.setdefault("model", {})["provider"] = env_provider.lower()
+        config.setdefault("model", {})["provider"] = env_provider
 
     # Override language from env var if set
     env_lang = os.environ.get("IARA_LANGUAGE")
@@ -66,6 +66,13 @@ def main():
 
     # Resolve API key for selected provider
     provider = config.get("model", {}).get("provider", "openrouter")
+    provider = normalize_provider(provider)
+    if not provider:
+        supported = ", ".join(sorted(SUPPORTED_PROVIDERS))
+        print("❌ Error: Invalid provider configured.", file=sys.stderr)
+        print("Supported providers: %s" % supported, file=sys.stderr)
+        sys.exit(1)
+
     api_key, source = resolve_api_key(provider)
     if not api_key:
         env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")

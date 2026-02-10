@@ -14,13 +14,26 @@ PROVIDER_ENV_VARS = {
     "anthropic": "ANTHROPIC_API_KEY",
 }
 
+SUPPORTED_PROVIDERS = set(PROVIDER_ENV_VARS.keys())
+
+
+def normalize_provider(provider, default="openrouter"):
+    """Normalize and validate provider name. Returns None if invalid."""
+    if not provider:
+        return default
+    if isinstance(provider, str):
+        provider = provider.lower()
+    return provider if provider in SUPPORTED_PROVIDERS else None
+
+
 def resolve_api_key(provider="openrouter"):
     """
     Resolve API key by priority order.
     Returns (api_key, source) where source is 'env', 'config', or 'none'.
     """
-    if isinstance(provider, str):
-        provider = provider.lower()
+    provider = normalize_provider(provider)
+    if not provider:
+        return None, "none"
     # 1. Environment variable (highest priority - CI/CD)
     env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
     env_key = os.environ.get(env_var)
@@ -72,9 +85,7 @@ def validate_api_key(api_key, provider="openrouter"):
     import urllib.request
     import urllib.error
 
-    if isinstance(provider, str):
-        provider = provider.lower()
-
+    provider = normalize_provider(provider)
     if provider != "openrouter":
         return True, None
 

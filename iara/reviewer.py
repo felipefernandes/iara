@@ -9,6 +9,7 @@ import urllib.request
 import urllib.error
 
 from iara.models import PROVIDER_CONFIGS, FREE_MODELS
+from iara.auth import normalize_provider, SUPPORTED_PROVIDERS
 from iara.prompt import generate_system_prompt
 
 
@@ -134,8 +135,10 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
     model_config = config.get("model", {})
     preferred_model = os.environ.get("IARA_MODEL") or model_config.get("preferred")
     provider = model_config.get("provider", "openrouter")
-    if isinstance(provider, str):
-        provider = provider.lower()
+    provider = normalize_provider(provider)
+    if not provider:
+        supported = ", ".join(sorted(SUPPORTED_PROVIDERS))
+        return "❌ Invalid provider configured. Supported providers: %s" % supported
     fallback_enabled = model_config.get("fallback_enabled", True)
 
     models_to_try = []

@@ -2,7 +2,7 @@
 
 import os
 import sys
-from iara.auth import resolve_api_key, validate_api_key, PROVIDER_ENV_VARS
+from iara.auth import resolve_api_key, validate_api_key, PROVIDER_ENV_VARS, normalize_provider, SUPPORTED_PROVIDERS
 from iara.config import load_config
 
 
@@ -10,7 +10,15 @@ def run_auth_status():
     """Show current authentication status."""
     config = load_config()
     env_provider = os.environ.get("IARA_PROVIDER")
-    provider = env_provider.lower() if env_provider else config.get("model", {}).get("provider", "openrouter")
+    provider = env_provider or config.get("model", {}).get("provider", "openrouter")
+    provider = normalize_provider(provider)
+    if not provider:
+        supported = ", ".join(sorted(SUPPORTED_PROVIDERS))
+        print("  Status: INVALID PROVIDER")
+        print()
+        print("  Supported providers: %s" % supported)
+        print()
+        sys.exit(1)
 
     api_key, source = resolve_api_key(provider)
 

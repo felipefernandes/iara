@@ -4,7 +4,7 @@ import os
 import tempfile
 from unittest.mock import patch, MagicMock
 
-from iara.auth import resolve_api_key, validate_api_key, save_global_config, _load_global_config
+from iara.auth import resolve_api_key, validate_api_key, save_global_config, _load_global_config, normalize_provider
 
 
 class TestResolveApiKey(unittest.TestCase):
@@ -64,6 +64,21 @@ class TestResolveApiKey(unittest.TestCase):
         key, source = resolve_api_key()
         self.assertIsNone(key)
         self.assertEqual(source, "none")
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_invalid_provider_returns_none(self):
+        """Invalid provider returns none."""
+        key, source = resolve_api_key("invalid")
+        self.assertIsNone(key)
+        self.assertEqual(source, "none")
+
+
+class TestNormalizeProvider(unittest.TestCase):
+    def test_default_provider(self):
+        self.assertEqual(normalize_provider(None), "openrouter")
+
+    def test_invalid_provider(self):
+        self.assertIsNone(normalize_provider("not-a-provider"))
 
 
 class TestSaveGlobalConfig(unittest.TestCase):
