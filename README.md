@@ -4,6 +4,12 @@
 
 Iara is an automated, project-agnostic, configurable code review tool designed to run in CI/CD pipelines or locally via CLI. It uses the OpenRouter API to access multiple LLM models (Llama 3, Gemini 2.0, etc.) for free or on paid plans.
 
+---
+
+[![Iara Code Review](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
+
 ## 🚀 Features
 
 - **Agnostic**: Configure your project context (Tech Stack, Rules) via JSON.
@@ -18,12 +24,12 @@ Iara is an automated, project-agnostic, configurable code review tool designed t
 
 Iara combines different types of analysis for a complete review:
 
-| Type | What does it do? | Does Iara cover it? | How? |
-| :--- | :--- | :--- | :--- |
-| **Static Analysis** | Finds bugs by reading code (fast). | ✅ **Yes** | Via Extensions (Regex) and LLM. |
-| **Linting** | Fixes style and formatting. | ✅ **Yes** | LLM can suggest *Clean Code*. |
-| **SAST** | Finds security flaws in code. | ✅ **Yes** | Primary focus on vulnerability detection. |
-| **Dynamic Analysis** | Finds bugs by running the app (slow). | ❌ No | Focus on fast CI/CD (Code Review). |
+| Type                 | What does it do?                      | Does Iara cover it? | How?                                      |
+| :------------------- | :------------------------------------ | :------------------ | :---------------------------------------- |
+| **Static Analysis**  | Finds bugs by reading code (fast).    | ✅ **Yes**          | Via Extensions (Regex) and LLM.           |
+| **Linting**          | Fixes style and formatting.           | ✅ **Yes**          | LLM can suggest _Clean Code_.             |
+| **SAST**             | Finds security flaws in code.         | ✅ **Yes**          | Primary focus on vulnerability detection. |
+| **Dynamic Analysis** | Finds bugs by running the app (slow). | ❌ No               | Focus on fast CI/CD (Code Review).        |
 
 ### What does it detect?
 
@@ -221,10 +227,10 @@ Iara will automatically:
 - uses: felipefernandes/iara@main
   with:
     openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-    model: 'google/gemini-2.0-flash-exp:free'   # Force model
-    config_path: '.iara.json'                     # Config path
-    post_comment: 'true'                          # Post comment (default: true)
-    language: 'pt-br'                             # Review language
+    model: "google/gemini-2.0-flash-exp:free" # Force model
+    config_path: ".iara.json" # Config path
+    post_comment: "true" # Post comment (default: true)
+    language: "pt-br" # Review language
 ```
 
 ---
