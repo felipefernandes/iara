@@ -21,7 +21,7 @@ class TestConfig(unittest.TestCase):
 
         config = load_config(self.config_path)
         self.assertEqual(config, DEFAULT_CONFIG)
-        self.assertEqual(config['project']['name'], "Projeto Genérico")
+        self.assertEqual(config['project']['name'], "Generic Project")
 
     def test_load_config_from_file(self):
         """Test loading configuration from a JSON file."""

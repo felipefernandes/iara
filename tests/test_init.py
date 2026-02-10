@@ -4,7 +4,7 @@ import os
 import tempfile
 from unittest.mock import patch, call
 
-from iara.init import run_init, _step_api_key, _step_project_config, _step_review_config, _mask_key
+from iara.init import run_init, _step_api_key, _step_project_config, _step_review_config, _step_language, _mask_key
 
 
 class TestMaskKey(unittest.TestCase):
@@ -15,6 +15,23 @@ class TestMaskKey(unittest.TestCase):
     def test_short_key(self):
         """Keys curtas retornam ***."""
         self.assertEqual(_mask_key("short"), "***")
+
+
+class TestStepLanguage(unittest.TestCase):
+    @patch("builtins.input", return_value="")
+    def test_default_en(self, mock_input):
+        """Default language is en."""
+        self.assertEqual(_step_language(), "en")
+
+    @patch("builtins.input", return_value="pt-br")
+    def test_custom_language(self, mock_input):
+        """Custom language code is accepted."""
+        self.assertEqual(_step_language(), "pt-br")
+
+    @patch("builtins.input", return_value="ES")
+    def test_uppercase_normalized(self, mock_input):
+        """Input is lowercased."""
+        self.assertEqual(_step_language(), "es")
 
 
 class TestStepProjectConfig(unittest.TestCase):
@@ -60,6 +77,7 @@ class TestRunInit(unittest.TestCase):
     @patch("iara.init.resolve_api_key", return_value=(None, "none"))
     @patch("getpass.getpass", return_value="sk-or-test-key")
     @patch("builtins.input", side_effect=[
+        "pt-br",            # language
         "Test Project",     # project name
         "Python",           # tech stack
         "A test project",   # description
@@ -79,6 +97,7 @@ class TestRunInit(unittest.TestCase):
         mock_save_config.assert_called_once()
         config_arg = mock_save_config.call_args[0][0]
         self.assertEqual(config_arg["project"]["name"], "Test Project")
+        self.assertEqual(config_arg["language"], "pt-br")
 
         # Verifica que save_global_config foi chamado com a key
         mock_save_global.assert_called_once_with({"api_key": "sk-or-test-key"})
@@ -88,6 +107,7 @@ class TestRunInit(unittest.TestCase):
     @patch("iara.init.resolve_api_key", return_value=("sk-or-existing", "config"))
     @patch("builtins.input", side_effect=[
         "Y",                # use existing key
+        "",                 # language (default en)
         "My Project",       # project name
         "",                 # tech stack (default)
         "",                 # description (default)

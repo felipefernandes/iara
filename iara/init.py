@@ -7,6 +7,7 @@ import getpass
 
 from iara.auth import validate_api_key, save_global_config, resolve_api_key
 from iara.config import DEFAULT_CONFIG, save_config
+from iara.prompt import LANGUAGE_MAP
 
 
 KNOWN_STACKS = ["Python", "C#", "Unity", "JavaScript", "TypeScript",
@@ -14,6 +15,8 @@ KNOWN_STACKS = ["Python", "C#", "Unity", "JavaScript", "TypeScript",
 
 KNOWN_FOCUS_AREAS = ["Logic", "Security", "Performance", "Clean Code",
                      "Error Handling", "Testing"]
+
+SUGGESTED_LANGUAGES = ["en", "pt-br", "es", "fr", "de", "ja", "zh"]
 
 
 def run_init():
@@ -25,14 +28,17 @@ def run_init():
     # --- Step 1: API Key ---
     api_key = _step_api_key()
 
-    # --- Step 2: Project Config ---
+    # --- Step 2: Language ---
+    language = _step_language()
+
+    # --- Step 3: Project Config ---
     project_config = _step_project_config()
 
-    # --- Step 3: Review Preferences ---
+    # --- Step 4: Review Preferences ---
     review_config = _step_review_config()
 
     # --- Save ---
-    _save_configs(api_key, project_config, review_config)
+    _save_configs(api_key, language, project_config, review_config)
 
     # --- Next steps ---
     _show_next_steps()
@@ -82,10 +88,22 @@ def _step_api_key():
                 return api_key
 
 
+def _step_language():
+    """Select review output language."""
+    print()
+    print("  Step 2: Review Language")
+    print()
+
+    lang_display = ", ".join("%s (%s)" % (code, LANGUAGE_MAP.get(code, code)) for code in SUGGESTED_LANGUAGES)
+    print("  Options: %s" % lang_display)
+    lang_input = input("  Review language [en]: ").strip().lower()
+    return lang_input if lang_input else "en"
+
+
 def _step_project_config():
     """Solicita configuracao do projeto."""
     print()
-    print("  Step 2: Project Configuration")
+    print("  Step 3: Project Configuration")
     print()
 
     default_name = os.path.basename(os.getcwd())
@@ -108,7 +126,7 @@ def _step_project_config():
 def _step_review_config():
     """Solicita preferencias de review."""
     print()
-    print("  Step 3: Review Preferences")
+    print("  Step 4: Review Preferences")
     print()
 
     print("  Available: %s, All" % ", ".join(KNOWN_FOCUS_AREAS))
@@ -127,7 +145,7 @@ def _step_review_config():
     }
 
 
-def _save_configs(api_key, project, review):
+def _save_configs(api_key, language, project, review):
     """Salva configs local e global."""
     print()
 
@@ -138,7 +156,8 @@ def _save_configs(api_key, project, review):
         "model": {
             "preferred": None,
             "fallback_enabled": True
-        }
+        },
+        "language": language
     }
 
     config_path = os.path.join(os.getcwd(), ".iara.json")

@@ -8,6 +8,7 @@ set -e
 # --- Input Variables (from action.yml inputs) ---
 OPENROUTER_API_KEY="${INPUT_OPENROUTER_API_KEY}"
 IARA_MODEL="${INPUT_MODEL}"
+IARA_LANGUAGE="${INPUT_LANGUAGE}"
 CONFIG_PATH="${INPUT_CONFIG_PATH:-.iara.json}"
 POST_COMMENT="${INPUT_POST_COMMENT:-true}"
 
@@ -51,6 +52,10 @@ export PR_DIFF="$DIFF"
 
 if [ -n "$IARA_MODEL" ]; then
   export IARA_MODEL
+fi
+
+if [ -n "$IARA_LANGUAGE" ]; then
+  export IARA_LANGUAGE
 fi
 
 # --- Copy config from workspace if it exists ---
