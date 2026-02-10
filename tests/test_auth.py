@@ -1,0 +1,99 @@
+import unittest
+import json
+import os
+import tempfile
+from unittest.mock import patch, MagicMock
+
+from iara.auth import resolve_api_key, validate_api_key, save_global_config, _load_global_config
+
+
+class TestResolveApiKey(unittest.TestCase):
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test-key"})
+    def test_resolve_from_env(self):
+        """Env var tem maior prioridade."""
+        key, source = resolve_api_key()
+        self.assertEqual(key, "sk-or-test-key")
+        self.assertEqual(source, "env")
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("iara.auth._load_global_config", return_value={"api_key": "sk-or-config-key"})
+    def test_resolve_from_config(self, mock_config):
+        """Config global eh usado quando env var nao existe."""
+        # Garante que OPENROUTER_API_KEY nao esta no env
+        os.environ.pop("OPENROUTER_API_KEY", None)
+        key, source = resolve_api_key()
+        self.assertEqual(key, "sk-or-config-key")
+        self.assertEqual(source, "config")
+
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-env-key"})
+    @patch("iara.auth._load_global_config", return_value={"api_key": "sk-or-config-key"})
+    def test_env_takes_precedence_over_config(self, mock_config):
+        """Env var tem prioridade sobre config."""
+        key, source = resolve_api_key()
+        self.assertEqual(key, "sk-or-env-key")
+        self.assertEqual(source, "env")
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("iara.auth._load_global_config", return_value={})
+    def test_resolve_none(self, mock_config):
+        """Retorna None quando nenhum key eh encontrado."""
+        os.environ.pop("OPENROUTER_API_KEY", None)
+        key, source = resolve_api_key()
+        self.assertIsNone(key)
+        self.assertEqual(source, "none")
+
+
+class TestSaveGlobalConfig(unittest.TestCase):
+    def test_save_and_load(self):
+        """Salva e carrega config global."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = os.path.join(tmpdir, "config.json")
+            with patch("iara.auth.GLOBAL_CONFIG_DIR", tmpdir), \
+                 patch("iara.auth.GLOBAL_CONFIG_PATH", config_path):
+                save_global_config({"api_key": "sk-or-test"})
+
+                self.assertTrue(os.path.exists(config_path))
+                with open(config_path, "r") as f:
+                    data = json.load(f)
+                self.assertEqual(data["api_key"], "sk-or-test")
+
+
+class TestValidateApiKey(unittest.TestCase):
+    @patch("urllib.request.urlopen")
+    def test_valid_key(self, mock_urlopen):
+        """Key valida retorna True."""
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        is_valid, error = validate_api_key("sk-or-valid")
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+
+    @patch("urllib.request.urlopen")
+    def test_invalid_key_401(self, mock_urlopen):
+        """Key invalida retorna False com mensagem."""
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url="", code=401, msg="Unauthorized", hdrs=None, fp=None
+        )
+
+        is_valid, error = validate_api_key("sk-or-invalid")
+        self.assertFalse(is_valid)
+        self.assertIn("401", error)
+
+    @patch("urllib.request.urlopen")
+    def test_network_error(self, mock_urlopen):
+        """Erro de rede retorna False."""
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
+
+        is_valid, error = validate_api_key("sk-or-test")
+        self.assertFalse(is_valid)
+        self.assertIn("conexao", error.lower())
+
+
+if __name__ == "__main__":
+    unittest.main()
