@@ -1,0 +1,5 @@
+# Force LF for shell scripts (CRLF breaks shebang on Linux/Docker)
+*.sh text eol=lf
+
+# Default behavior
+* text=auto
