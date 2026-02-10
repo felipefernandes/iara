@@ -41,29 +41,43 @@ A Iara combina diferentes tipos de análise para uma revisão completa:
 
 ---
 
-## 📦 Instalação
+## 📦 Instalação e Setup
 
-### Via pip (Recomendado)
+### 1. Instalar
 
 ```bash
 pip install iara-reviewer
 ```
 
-Após instalar, o comando `iara` fica disponível globalmente:
+### 2. Configurar (Setup Interativo)
+
+```bash
+iara init
+```
+
+O wizard vai guiar você em 3 passos:
+
+- **API Key** — Pede sua chave OpenRouter (gratuita em [openrouter.ai/keys](https://openrouter.ai/keys)), valida e salva
+- **Projeto** — Nome, tech stack, descrição
+- **Preferências** — Áreas de foco (Security, Performance, etc.)
+
+Pronto! A API key fica salva em `~/.iara/config.json` e o projeto em `.iara.json`.
+
+### 3. Usar
 
 ```bash
 git diff main | iara
 ```
 
-### Via clone (Desenvolvimento)
+### Verificar autenticação
 
 ```bash
-git clone https://github.com/felipefernandes/iara.git
-cd iara
-pip install -e .
+iara auth status
 ```
 
-### Configurar chave de API
+### Setup alternativo (sem wizard)
+
+Se preferir configurar manualmente:
 
 ```bash
 # Linux/Mac
@@ -73,13 +87,21 @@ export OPENROUTER_API_KEY="sk-or-..."
 $env:OPENROUTER_API_KEY="sk-or-..."
 ```
 
-Obtenha sua chave gratuita em [openrouter.ai](https://openrouter.ai/).
+A prioridade de resolução da API key é: variável de ambiente > config global (`~/.iara/config.json`).
+
+### Via clone (Desenvolvimento)
+
+```bash
+git clone https://github.com/felipefernandes/iara.git
+cd iara
+pip install -e .
+```
 
 ---
 
-## ⚙️ Configuração
+## ⚙️ Configuração do Projeto
 
-Crie um arquivo `.iara.json` na raiz do seu projeto:
+O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo manualmente:
 
 ```json
 {
