@@ -53,6 +53,7 @@ class TestStepReviewConfig(unittest.TestCase):
 
 
 class TestRunInit(unittest.TestCase):
+    @patch("builtins.print")
     @patch("iara.init.save_global_config")
     @patch("iara.init.save_config")
     @patch("iara.init.validate_api_key", return_value=(True, None))
@@ -67,7 +68,8 @@ class TestRunInit(unittest.TestCase):
     ])
     def test_full_flow_new_setup(self, mock_input, mock_getpass,
                                   mock_resolve, mock_validate,
-                                  mock_save_config, mock_save_global):
+                                  mock_save_config, mock_save_global,
+                                  mock_print):
         """Fluxo completo com nova configuracao."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("os.getcwd", return_value=tmpdir):

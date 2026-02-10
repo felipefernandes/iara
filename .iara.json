@@ -1,0 +1,24 @@
+{
+  "project": {
+    "name": "iara-bot-reviewer",
+    "description": "Code Reviewer BOT Agent",
+    "tech_stack": [
+      "Python"
+    ]
+  },
+  "review": {
+    "focus_areas": [
+      "Logic",
+      "Security",
+      "Clean Code",
+      "Error Handling",
+      "Performance",
+      "Testing"
+    ],
+    "ignore_patterns": []
+  },
+  "model": {
+    "preferred": null,
+    "fallback_enabled": true
+  }
+}

@@ -1,0 +1,24 @@
+name: Iara Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    name: AI Code Review
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Iara Code Review
+        uses: felipefernandes/iara@main
+        with:
+          openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
