@@ -1,4 +1,4 @@
-"""Interface de linha de comando da Iara."""
+"""Command-line interface for Iara."""
 
 import os
 import sys
@@ -11,32 +11,32 @@ from iara.auth import resolve_api_key
 
 
 def main():
-    """Ponto de entrada principal."""
+    """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Iara - AI Code Reviewer",
         usage="iara [command] [options]"
     )
 
-    # Argumentos top-level (retrocompatibilidade)
-    parser.add_argument("--scan", help="Diretório para escanear (Modo Scan)", default=None)
-    parser.add_argument("--diff", help="Arquivo de diff (opcional, lê de stdin por padrão)", default=None)
+    # Top-level arguments (backward compatibility)
+    parser.add_argument("--scan", help="Directory to scan (Scan Mode)", default=None)
+    parser.add_argument("--diff", help="Diff file (optional, reads from stdin by default)", default=None)
 
-    # Subcomandos
+    # Subcommands
     subparsers = parser.add_subparsers(dest="command")
     subparsers.required = False
 
     # iara init
-    subparsers.add_parser("init", help="Setup interativo (API key + config do projeto)")
+    subparsers.add_parser("init", help="Interactive setup (API key + project config)")
 
     # iara auth
-    auth_parser = subparsers.add_parser("auth", help="Gerenciamento de autenticacao")
+    auth_parser = subparsers.add_parser("auth", help="Authentication management")
     auth_sub = auth_parser.add_subparsers(dest="auth_command")
     auth_sub.required = False
-    auth_sub.add_parser("status", help="Verificar status da autenticacao")
+    auth_sub.add_parser("status", help="Check authentication status")
 
     args = parser.parse_args()
 
-    # --- Roteamento de subcomandos ---
+    # --- Subcommand routing ---
     if args.command == "init":
         from iara.init import run_init
         run_init()
@@ -51,28 +51,33 @@ def main():
             auth_parser.print_help()
             return
 
-    # --- Fluxo existente de review (sem subcomando) ---
+    # --- Existing review flow (no subcommand) ---
     api_key, source = resolve_api_key()
     if not api_key:
-        print("❌ Erro: API key não configurada.", file=sys.stderr)
-        print("Execute 'iara init' para configurar, ou defina OPENROUTER_API_KEY.", file=sys.stderr)
+        print("❌ Error: API key not configured.", file=sys.stderr)
+        print("Run 'iara init' to set up, or set OPENROUTER_API_KEY.", file=sys.stderr)
         sys.exit(1)
 
-    # Carrega configuracoes
+    # Load config
     config = load_config()
 
-    # Modo Scan
+    # Override language from env var if set
+    env_lang = os.environ.get("IARA_LANGUAGE")
+    if env_lang:
+        config["language"] = env_lang
+
+    # Scan Mode
     if args.scan:
         if not os.path.isdir(args.scan):
-             print("❌ Erro: Diretório '%s' não encontrado." % args.scan, file=sys.stderr)
+             print("❌ Error: Directory '%s' not found." % args.scan, file=sys.stderr)
              sys.exit(1)
 
-        print("🚀 Iniciando modo SCAN em: %s" % args.scan, file=sys.stderr)
+        print("🚀 Starting SCAN mode on: %s" % args.scan, file=sys.stderr)
         result = scan_directory(args.scan, config)
         print(result)
         return
 
-    # Modo Diff (Legacy/Default)
+    # Diff Mode (Legacy/Default)
     diff = os.environ.get("PR_DIFF", "")
     if args.diff:
          if os.path.exists(args.diff):
@@ -87,8 +92,8 @@ def main():
             diff = sys.stdin.read()
 
     if not diff:
-        print("ℹ️ Nenhuma entrada de código detectada (stdin vazio, sem PR_DIFF, sem --scan).", file=sys.stderr)
-        print("Use: `git diff | iara` ou `iara --scan <dir>` ou `iara init`", file=sys.stderr)
+        print("ℹ️ No code input detected (empty stdin, no PR_DIFF, no --scan).", file=sys.stderr)
+        print("Use: `git diff | iara` or `iara --scan <dir>` or `iara init`", file=sys.stderr)
         sys.exit(0)
 
     review = review_code(diff, api_key, config)

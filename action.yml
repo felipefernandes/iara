@@ -22,6 +22,10 @@ inputs:
     description: 'Whether to post review as PR comment (true/false)'
     required: false
     default: 'true'
+  language:
+    description: 'Review output language (en, pt-br, es, fr, etc.). Defaults to config file or en.'
+    required: false
+    default: ''
 
 outputs:
   review:

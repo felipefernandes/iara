@@ -1,83 +1,87 @@
 # Iara - AI Code Reviewer 🧜‍♀️
 
-Iara é uma ferramenta de revisão de código automatizada, agnóstica a projetos e configurável, projetada para rodar em pipelines de CI/CD ou localmente via CLI. Ela utiliza a API OpenRouter para acessar diversos modelos de LLM (Llama 3, Gemini 2.0, etc.) gratuitamente ou em planos pagos.
+🇧🇷 [Leia em Português](README.pt-br.md)
 
-## 🚀 Funcionalidades
+Iara is an automated, project-agnostic, configurable code review tool designed to run in CI/CD pipelines or locally via CLI. It uses the OpenRouter API to access multiple LLM models (Llama 3, Gemini 2.0, etc.) for free or on paid plans.
 
-- **Agnóstica**: Configure o contexto do seu projeto (Tech Stack, Regras) via JSON.
-- **Multi-Modelo**: Suporte a múltiplos provedores via OpenRouter.
-- **Fallback Inteligente**: Tenta modelos gratuitos automaticamente se o preferido falhar.
-- **Rules-Based (Estático)**: Identifica padrões perigosos instantaneamente sem gastar tokens (ex: `GetComponent` em loops no Unity).
-- **LLM-Based (Inteligente)**: Usa IA para entender a lógica, segurança e contexto, indo além da sintaxe.
-- **GitHub + GitLab**: Integração nativa com ambas as plataformas, com comentários automáticos em PRs/MRs.
+## 🚀 Features
 
-## 🧠 Capacidades
+- **Agnostic**: Configure your project context (Tech Stack, Rules) via JSON.
+- **Multi-Model**: Support for multiple providers via OpenRouter.
+- **Smart Fallback**: Automatically tries free models if the preferred one fails.
+- **Rules-Based (Static)**: Identifies dangerous patterns instantly without spending tokens (e.g., `GetComponent` in loops in Unity).
+- **LLM-Based (Intelligent)**: Uses AI to understand logic, security, and context, going beyond syntax.
+- **GitHub + GitLab**: Native integration with both platforms, with automatic comments on PRs/MRs.
+- **Multi-Language Reviews**: Configure the output language — reviews can be written in English, Portuguese, Spanish, French, and more.
 
-A Iara combina diferentes tipos de análise para uma revisão completa:
+## 🧠 Capabilities
 
-| Tipo | O que faz? | A Iara cobre? | Como? |
+Iara combines different types of analysis for a complete review:
+
+| Type | What does it do? | Does Iara cover it? | How? |
 | :--- | :--- | :--- | :--- |
-| **Análise Estática** | Caça bugs lendo o código (rápido). | ✅ **Sim** | Via Extensões (Regex) e LLM. |
-| **Linting** | Corrige estilo e formatação. | ✅ **Sim** | LLM pode sugerir *Clean Code*. |
-| **SAST** | Caça falhas de segurança no código. | ✅ **Sim** | Foco primário na busca por vulnerabilidades. |
-| **Análise Dinâmica** | Caça bugs rodando o app (lento). | ❌ Não | Foco em CI/CD rápido (Code Review). |
+| **Static Analysis** | Finds bugs by reading code (fast). | ✅ **Yes** | Via Extensions (Regex) and LLM. |
+| **Linting** | Fixes style and formatting. | ✅ **Yes** | LLM can suggest *Clean Code*. |
+| **SAST** | Finds security flaws in code. | ✅ **Yes** | Primary focus on vulnerability detection. |
+| **Dynamic Analysis** | Finds bugs by running the app (slow). | ❌ No | Focus on fast CI/CD (Code Review). |
 
-### O que ela detecta?
+### What does it detect?
 
-1.  **Unity / Game Dev**:
-    - Uso de APIs lentas (`Find`, `GetComponent`) em loops críticos (`Update`).
-    - Alocação excessiva de memória (Garbage Collection).
-    - Excesso de logs (`Debug.Log`) em builds finais.
+1. **Unity / Game Dev**:
+   - Use of slow APIs (`Find`, `GetComponent`) in critical loops (`Update`).
+   - Excessive memory allocation (Garbage Collection).
+   - Excess logging (`Debug.Log`) in final builds.
 
-2.  **Segurança (Geral)**:
-    - Credenciais hardcoded (Senhas, API Keys).
-    - Vulnerabilidades de Injeção (SQL, Command).
-    - Falta de validação de inputs.
+2. **Security (General)**:
+   - Hardcoded credentials (Passwords, API Keys).
+   - Injection vulnerabilities (SQL, Command).
+   - Missing input validation.
 
-3.  **Qualidade de Código**:
-    - Lógica complexa ou confusa.
-    - Erros de tratamento de exceções.
-    - Sugestões de refatoração para legibilidade.
+3. **Code Quality**:
+   - Complex or confusing logic.
+   - Exception handling errors.
+   - Refactoring suggestions for readability.
 
 ---
 
-## 📦 Instalação e Setup
+## 📦 Installation and Setup
 
-### 1. Instalar
+### 1. Install
 
 ```bash
 pip install iara-reviewer
 ```
 
-### 2. Configurar (Setup Interativo)
+### 2. Configure (Interactive Setup)
 
 ```bash
 iara init
 ```
 
-O wizard vai guiar você em 3 passos:
+The wizard will guide you through 4 steps:
 
-- **API Key** — Pede sua chave OpenRouter (gratuita em [openrouter.ai/keys](https://openrouter.ai/keys)), valida e salva
-- **Projeto** — Nome, tech stack, descrição
-- **Preferências** — Áreas de foco (Security, Performance, etc.)
+- **API Key** — Asks for your OpenRouter key (free at [openrouter.ai/keys](https://openrouter.ai/keys)), validates and saves it
+- **Language** — Choose the review output language (en, pt-br, es, fr, etc.)
+- **Project** — Name, tech stack, description
+- **Preferences** — Focus areas (Security, Performance, etc.)
 
-Pronto! A API key fica salva em `~/.iara/config.json` e o projeto em `.iara.json`.
+Done! The API key is saved at `~/.iara/config.json` and project config at `.iara.json`.
 
-### 3. Usar
+### 3. Use
 
 ```bash
 git diff main | iara
 ```
 
-### Verificar autenticação
+### Check authentication
 
 ```bash
 iara auth status
 ```
 
-### Setup alternativo (sem wizard)
+### Alternative setup (without wizard)
 
-Se preferir configurar manualmente:
+If you prefer to configure manually:
 
 ```bash
 # Linux/Mac
@@ -87,9 +91,9 @@ export OPENROUTER_API_KEY="sk-or-..."
 $env:OPENROUTER_API_KEY="sk-or-..."
 ```
 
-A prioridade de resolução da API key é: variável de ambiente > config global (`~/.iara/config.json`).
+API key resolution priority: environment variable > global config (`~/.iara/config.json`).
 
-### Via clone (Desenvolvimento)
+### From source (Development)
 
 ```bash
 git clone https://github.com/felipefernandes/iara.git
@@ -99,15 +103,15 @@ pip install -e .
 
 ---
 
-## ⚙️ Configuração do Projeto
+## ⚙️ Project Configuration
 
-O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo manualmente:
+`iara init` automatically creates `.iara.json`. You can also create it manually:
 
 ```json
 {
   "project": {
-    "name": "Meu Projeto",
-    "description": "Descrição do projeto.",
+    "name": "My Project",
+    "description": "Project description.",
     "tech_stack": ["Python"]
   },
   "review": {
@@ -117,15 +121,24 @@ O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo m
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
     "fallback_enabled": true
-  }
+  },
+  "language": "en"
 }
 ```
 
-Exemplo pronto disponível em `iara-example.json`.
+The `language` field controls the review output language. Supported values: `en`, `pt-br`, `es`, `fr`, `de`, `ja`, `zh`, `ko`, `ru`, or any language the LLM understands.
+
+You can also override via environment variable:
+
+```bash
+export IARA_LANGUAGE="pt-br"
+```
+
+A ready-to-use example is available at `iara-example.json`.
 
 ---
 
-## 🏃 Como Usar
+## 🏃 How to Use
 
 ### Via Pipe (Git Diff)
 
@@ -133,20 +146,20 @@ Exemplo pronto disponível em `iara-example.json`.
 git diff main | iara
 ```
 
-### Via Variável de Ambiente
+### Via Environment Variable
 
 ```bash
 export PR_DIFF=$(git diff main)
 iara
 ```
 
-### Modo Scan (Análise Estática)
+### Scan Mode (Static Analysis)
 
 ```bash
-iara --scan ./caminho/do/projeto
+iara --scan ./path/to/project
 ```
 
-### Forçando um Modelo
+### Forcing a Model
 
 ```bash
 export IARA_MODEL="meta-llama/llama-3.2-3b-instruct:free"
@@ -155,20 +168,20 @@ git diff | iara
 
 ---
 
-## 🐙 Integração GitHub
+## 🐙 GitHub Integration
 
-Adicione a Iara ao seu repositório GitHub em **2 passos**:
+Add Iara to your GitHub repository in **2 steps**:
 
-### 1. Configurar o secret
+### 1. Configure the secret
 
-Vá em **Settings > Secrets and variables > Actions > New repository secret** e adicione:
+Go to **Settings > Secrets and variables > Actions > New repository secret** and add:
 
-- Nome: `OPENROUTER_API_KEY`
-- Valor: sua chave da API OpenRouter
+- Name: `OPENROUTER_API_KEY`
+- Value: your OpenRouter API key
 
-### 2. Criar o workflow
+### 2. Create the workflow
 
-Crie o arquivo `.github/workflows/iara-review.yml`:
+Create the file `.github/workflows/iara-review.yml`:
 
 ```yaml
 name: Iara Code Review
@@ -190,41 +203,42 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Iara Code Review
-        uses: felipefernandes/iara@v1
+        uses: felipefernandes/iara@main
         with:
           openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-A Iara vai automaticamente:
+Iara will automatically:
 
-- Revisar o diff do Pull Request
-- Postar um comentário com o resultado da review
+- Review the Pull Request diff
+- Post a comment with the review result
 
-### Opções adicionais
+### Additional options
 
 ```yaml
-- uses: felipefernandes/iara@v1
+- uses: felipefernandes/iara@main
   with:
     openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-    model: 'google/gemini-2.0-flash-exp:free'   # Forçar modelo
-    config_path: '.iara.json'                     # Caminho do config
-    post_comment: 'true'                          # Postar comentário (default: true)
+    model: 'google/gemini-2.0-flash-exp:free'   # Force model
+    config_path: '.iara.json'                     # Config path
+    post_comment: 'true'                          # Post comment (default: true)
+    language: 'pt-br'                             # Review language
 ```
 
 ---
 
-## 🦊 Integração GitLab
+## 🦊 GitLab Integration
 
-### 1. Configurar variáveis
+### 1. Configure variables
 
-Vá em **Settings > CI/CD > Variables** e adicione:
+Go to **Settings > CI/CD > Variables** and add:
 
-- `OPENROUTER_API_KEY`: Chave da API OpenRouter
-- `GITLAB_TOKEN`: Personal/Project Access Token com scope `api` (necessário para comentários no MR)
+- `OPENROUTER_API_KEY`: OpenRouter API key
+- `GITLAB_TOKEN`: Personal/Project Access Token with `api` scope (required for MR comments)
 
-### 2. Adicionar ao `.gitlab-ci.yml`
+### 2. Add to `.gitlab-ci.yml`
 
 ```yaml
 stages:
@@ -259,16 +273,16 @@ iara_code_review:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
-A Iara vai automaticamente:
+Iara will automatically:
 
-- Revisar o diff do Merge Request
-- Postar um comentário com o resultado da review no MR
+- Review the Merge Request diff
+- Post a comment with the review result on the MR
 
-Um template completo está disponível em `gitlab-ci.yml`.
+A complete template is available at `gitlab-ci.yml`.
 
 ---
 
-## 🔧 Qualquer CI (Jenkins, CircleCI, etc.)
+## 🔧 Any CI (Jenkins, CircleCI, etc.)
 
 ```bash
 pip install iara-reviewer
@@ -278,12 +292,12 @@ git diff main...HEAD | iara
 
 ---
 
-## 🧪 Testes
+## 🧪 Tests
 
 ```bash
 python -m unittest discover tests
 ```
 
-## 📜 Licença
+## 📜 License
 
 MIT

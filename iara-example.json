@@ -1,7 +1,7 @@
 {
   "project": {
-    "name": "Meu Projeto Incrível",
-    "description": "Uma API RESTful feita com FastAPI e PostgreSQL.",
+    "name": "My Awesome Project",
+    "description": "A RESTful API built with FastAPI and PostgreSQL.",
     "tech_stack": ["Python", "FastAPI", "PostgreSQL", "Docker"]
   },
   "review": {
@@ -11,5 +11,6 @@
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
     "fallback_enabled": true
-  }
+  },
+  "language": "en"
 }

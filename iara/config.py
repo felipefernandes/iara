@@ -7,8 +7,8 @@ import json
 # Configuracao Padrao (Generica)
 DEFAULT_CONFIG = {
     "project": {
-        "name": "Projeto Genérico",
-        "description": "Um projeto de software.",
+        "name": "Generic Project",
+        "description": "A software project.",
         "tech_stack": ["Python"]
     },
     "review": {
@@ -18,7 +18,8 @@ DEFAULT_CONFIG = {
     "model": {
         "preferred": None,
         "fallback_enabled": True
-    }
+    },
+    "language": "en"
 }
 
 def deep_merge(base, override):
@@ -42,7 +43,7 @@ def load_config(config_path=".iara.json"):
             user_config = json.load(f)
             return deep_merge(DEFAULT_CONFIG, user_config)
     except json.JSONDecodeError:
-        print("⚠️ Erro ao ler %s. Usando configuração padrão." % config_path, file=sys.stderr)
+        print("⚠️ Error reading %s. Using default config." % config_path, file=sys.stderr)
         return DEFAULT_CONFIG.copy()
 
 
