@@ -111,9 +111,12 @@ def _step_review_config():
     print("  Step 3: Review Preferences")
     print()
 
-    print("  Available: %s" % ", ".join(KNOWN_FOCUS_AREAS))
-    focus_input = input("  Focus areas (comma-separated) [Logic, Security, Performance]: ").strip()
-    focus_areas = [s.strip() for s in focus_input.split(",") if s.strip()] if focus_input else ["Logic", "Security", "Performance"]
+    print("  Available: %s, All" % ", ".join(KNOWN_FOCUS_AREAS))
+    focus_input = input("  Focus areas (comma-separated) [All]: ").strip()
+    if not focus_input or focus_input.lower() == "all":
+        focus_areas = list(KNOWN_FOCUS_AREAS)
+    else:
+        focus_areas = [s.strip() for s in focus_input.split(",") if s.strip()]
 
     ignore_input = input("  Ignore patterns (comma-separated) []: ").strip()
     ignore_patterns = [s.strip() for s in ignore_input.split(",") if s.strip()] if ignore_input else []
