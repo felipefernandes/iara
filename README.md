@@ -153,14 +153,6 @@ export IARA_MODEL="meta-llama/llama-3.2-3b-instruct:free"
 git diff | iara
 ```
 
-### Retrocompatibilidade
-
-O script `ai-codereview.py` continua funcionando para quem já o utiliza:
-
-```bash
-git diff | python ai-codereview.py
-```
-
 ---
 
 ## 🐙 Integração GitHub
