@@ -1,10 +1,10 @@
-"""Carregamento de configuracao e valores padrao."""
+"""Configuration loading and default values."""
 
 import os
 import sys
 import json
 
-# Configuracao Padrao (Generica)
+# Default Configuration
 DEFAULT_CONFIG = {
     "project": {
         "name": "Generic Project",
@@ -23,7 +23,7 @@ DEFAULT_CONFIG = {
 }
 
 def deep_merge(base, override):
-    """Merge recursivo de dicts. Retorna novo dict."""
+    """Recursive dict merge. Returns new dict."""
     result = base.copy()
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
@@ -34,7 +34,7 @@ def deep_merge(base, override):
 
 
 def load_config(config_path=".iara.json"):
-    """Carrega a configuracao do arquivo JSON ou retorna o padrao."""
+    """Load configuration from JSON file or return defaults."""
     if not os.path.exists(config_path):
         return DEFAULT_CONFIG.copy()
 
@@ -48,6 +48,6 @@ def load_config(config_path=".iara.json"):
 
 
 def save_config(config, config_path=".iara.json"):
-    """Salva configuracao em arquivo JSON."""
+    """Save configuration to JSON file."""
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
