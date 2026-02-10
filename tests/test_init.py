@@ -40,7 +40,8 @@ class TestStepReviewConfig(unittest.TestCase):
     def test_defaults(self, mock_input):
         """Valores padrao sao usados quando input eh vazio."""
         config = _step_review_config()
-        self.assertEqual(config["focus_areas"], ["Logic", "Security", "Performance"])
+        self.assertEqual(config["focus_areas"], ["Logic", "Security", "Performance", "Clean Code",
+                                                     "Error Handling", "Testing"])
         self.assertEqual(config["ignore_patterns"], [])
 
     @patch("builtins.input", side_effect=["Security, Performance", "tests/*, docs/*"])
