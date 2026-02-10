@@ -1,6 +1,7 @@
 """API key resolution and global configuration management."""
 
 import os
+import sys
 import json
 import stat
 
@@ -65,10 +66,13 @@ def _load_global_config():
 
 def save_global_config(config):
     """Save config to ~/.iara/config.json with restricted permissions."""
-    os.makedirs(GLOBAL_CONFIG_DIR, exist_ok=True)
-
-    with open(GLOBAL_CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
+    try:
+        os.makedirs(GLOBAL_CONFIG_DIR, exist_ok=True)
+        with open(GLOBAL_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+    except OSError as e:
+        print("⚠️ Could not save global config: %s" % e, file=sys.stderr)
+        return
 
     # Restricted permissions (Unix only, ignored on Windows)
     try:

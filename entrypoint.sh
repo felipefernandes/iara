@@ -11,6 +11,7 @@ OPENAI_API_KEY="${INPUT_OPENAI_API_KEY}"
 GEMINI_API_KEY="${INPUT_GEMINI_API_KEY}"
 ANTHROPIC_API_KEY="${INPUT_ANTHROPIC_API_KEY}"
 PROVIDER="${INPUT_PROVIDER:-openrouter}"
+PROVIDER=$(echo "$PROVIDER" | tr '[:upper:]' '[:lower:]')
 IARA_MODEL="${INPUT_MODEL}"
 IARA_LANGUAGE="${INPUT_LANGUAGE}"
 CONFIG_PATH="${INPUT_CONFIG_PATH:-.iara.json}"
@@ -19,6 +20,16 @@ POST_COMMENT="${INPUT_POST_COMMENT:-true}"
 # --- GitHub Context Variables ---
 GITHUB_TOKEN="${GITHUB_TOKEN}"
 REPO="${GITHUB_REPOSITORY}"
+
+# --- Validate Provider ---
+case "$PROVIDER" in
+  openrouter|openai|gemini|anthropic)
+    ;;
+  *)
+    echo "::error::Invalid provider '$PROVIDER'. Supported: openrouter, openai, gemini, anthropic."
+    exit 1
+    ;;
+esac
 
 # --- Validate Required Inputs ---
 KEY_COUNT=0
