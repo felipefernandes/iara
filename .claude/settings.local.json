@@ -17,7 +17,8 @@
       "Bash(powershell -Command \"& { .\\\\.venv\\\\Scripts\\\\Activate.ps1; python -m pip install build twine }\")",
       "Bash(powershell:*)",
       "Bash(..venvScriptspython.exe -m unittest:*)",
-      "Bash(python -m unittest:*)"
+      "Bash(python -m unittest:*)",
+      "Bash(Select-String -Pattern \"\\(^Ran |^OK|FAIL|ERROR|test_\\)\")"
     ]
   }
 }
