@@ -1,5 +1,7 @@
 # Iara - AI Code Reviewer 🧜‍♀️
 
+![Iara - AI Code Review Agent](.assets/iara-github-banner.png)
+
 🇧🇷 [Leia em Português](README.pt-br.md)
 
 Iara is an automated, project-agnostic, configurable code review tool designed to run in CI/CD pipelines or locally via CLI. It connects directly to the LLM provider of your choice — OpenRouter (free models), OpenAI, Google Gemini, or Anthropic Claude.
