@@ -2,13 +2,19 @@
 
 🇺🇸 [Read in English](README.md)
 
-Iara é uma ferramenta de revisão de código automatizada, agnóstica a projetos e configurável, projetada para rodar em pipelines de CI/CD ou localmente via CLI. Ela utiliza a API OpenRouter para acessar diversos modelos de LLM (Llama 3, Gemini 2.0, etc.) gratuitamente ou em planos pagos.
+Iara é uma ferramenta de revisão de código automatizada, agnóstica a projetos e configurável, projetada para rodar em pipelines de CI/CD ou localmente via CLI. Ela se conecta diretamente ao provedor de LLM de sua escolha — OpenRouter (modelos gratuitos), OpenAI, Google Gemini ou Anthropic Claude.
+
+---
+
+[![Iara Code Review](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
 
 ## 🚀 Funcionalidades
 
 - **Agnóstica**: Configure o contexto do seu projeto (Tech Stack, Regras) via JSON.
-- **Multi-Modelo**: Suporte a múltiplos provedores via OpenRouter.
-- **Fallback Inteligente**: Tenta modelos gratuitos automaticamente se o preferido falhar.
+- **Multi-Provedor**: Conecte diretamente ao OpenRouter, OpenAI, Google Gemini ou Anthropic Claude.
+- **Fallback Inteligente**: Tenta modelos gratuitos automaticamente se o preferido falhar (apenas OpenRouter).
 - **Rules-Based (Estático)**: Identifica padrões perigosos instantaneamente sem gastar tokens (ex: `GetComponent` em loops no Unity).
 - **LLM-Based (Inteligente)**: Usa IA para entender a lógica, segurança e contexto, indo além da sintaxe.
 - **GitHub + GitLab**: Integração nativa com ambas as plataformas, com comentários automáticos em PRs/MRs.
@@ -58,14 +64,15 @@ pip install iara-reviewer
 iara init
 ```
 
-O wizard vai guiar você em 4 passos:
+O wizard vai guiar você em **5 passos**:
 
-- **API Key** — Pede sua chave OpenRouter (gratuita em [openrouter.ai/keys](https://openrouter.ai/keys)), valida e salva
-- **Idioma** — Escolha o idioma das reviews (en, pt-br, es, fr, etc.)
-- **Projeto** — Nome, tech stack, descrição
-- **Preferências** — Áreas de foco (Security, Performance, etc.)
+1. **Idioma** — Escolha o idioma das reviews (en, pt-br, es, fr, etc.)
+2. **Provedor** — Escolha seu provedor de LLM: `openrouter` (padrão, gratuito), `openai`, `gemini` ou `anthropic`
+3. **API Key** — Informe a chave do provedor escolhido (validada e salva em `~/.iara/config.json`)
+4. **Projeto** — Nome, tech stack, descrição
+5. **Preferências** — Áreas de foco (Security, Performance, etc.)
 
-Pronto! A API key fica salva em `~/.iara/config.json` e o projeto em `.iara.json`.
+Pronto! O config do projeto fica salvo em `.iara.json`.
 
 ### 3. Usar
 
@@ -79,16 +86,25 @@ git diff main | iara
 iara auth status
 ```
 
-### Setup alternativo (sem wizard)
+### Setup manual (sem wizard)
 
-Se preferir configurar manualmente:
+Configure o provedor e sua chave via variáveis de ambiente:
 
 ```bash
-# Linux/Mac
+# OpenRouter (padrão — modelos gratuitos disponíveis)
 export OPENROUTER_API_KEY="sk-or-..."
 
-# Windows (PowerShell)
-$env:OPENROUTER_API_KEY="sk-or-..."
+# OpenAI
+export IARA_PROVIDER="openai"
+export OPENAI_API_KEY="sk-..."
+
+# Google Gemini
+export IARA_PROVIDER="gemini"
+export GEMINI_API_KEY="AIza..."
+
+# Anthropic Claude
+export IARA_PROVIDER="anthropic"
+export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 A prioridade de resolução da API key é: variável de ambiente > config global (`~/.iara/config.json`).
@@ -120,17 +136,31 @@ O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo m
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
-    "fallback_enabled": true
+    "fallback_enabled": true,
+    "provider": "openrouter"
   },
   "language": "pt-br"
 }
 ```
 
+### Provedores suportados e modelos de exemplo
+
+| Provedor | valor de `provider` | Modelos de exemplo |
+| :--- | :--- | :--- |
+| OpenRouter (padrão) | `openrouter` | `google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.2-3b-instruct:free` |
+| OpenAI | `openai` | `gpt-4o`, `gpt-4.5-preview`, `o1` |
+| Google Gemini | `gemini` | `gemini-2.5-flash`, `gemini-2.5-pro` |
+| Anthropic Claude | `anthropic` | `claude-opus-4-5-20250929`, `claude-sonnet-4-5-20250929` |
+
+> **Nota**: O fallback inteligente para modelos gratuitos está disponível apenas para o OpenRouter. Ao usar `openai`, `gemini` ou `anthropic`, configure `"fallback_enabled": false`.
+
 O campo `language` controla o idioma das reviews. Valores suportados: `en`, `pt-br`, `es`, `fr`, `de`, `ja`, `zh`, `ko`, `ru`, ou qualquer idioma que o LLM entenda.
 
-Você também pode sobrescrever via variável de ambiente:
+Você também pode sobrescrever provedor, modelo e idioma via variáveis de ambiente:
 
 ```bash
+export IARA_PROVIDER="anthropic"
+export IARA_MODEL="claude-sonnet-4-5-20250929"
 export IARA_LANGUAGE="pt-br"
 ```
 
@@ -159,10 +189,25 @@ iara
 iara --scan ./caminho/do/projeto
 ```
 
-### Forçando um Modelo
+### Forçando Provedor e Modelo
 
 ```bash
-export IARA_MODEL="meta-llama/llama-3.2-3b-instruct:free"
+# Anthropic Claude
+export IARA_PROVIDER="anthropic"
+export ANTHROPIC_API_KEY="sk-ant-..."
+export IARA_MODEL="claude-sonnet-4-5-20250929"
+git diff | iara
+
+# OpenAI GPT-4o
+export IARA_PROVIDER="openai"
+export OPENAI_API_KEY="sk-..."
+export IARA_MODEL="gpt-4o"
+git diff | iara
+
+# Google Gemini
+export IARA_PROVIDER="gemini"
+export GEMINI_API_KEY="AIza..."
+export IARA_MODEL="gemini-2.5-flash"
 git diff | iara
 ```
 
@@ -174,14 +219,20 @@ Adicione a Iara ao seu repositório GitHub em **2 passos**:
 
 ### 1. Configurar o secret
 
-Vá em **Settings > Secrets and variables > Actions > New repository secret** e adicione:
+Vá em **Settings > Secrets and variables > Actions > New repository secret** e adicione a chave do seu provedor:
 
-- Nome: `OPENROUTER_API_KEY`
-- Valor: sua chave da API OpenRouter
+| Provedor | Nome do secret |
+| :--- | :--- |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| Google Gemini | `GEMINI_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
 
 ### 2. Criar o workflow
 
-Crie o arquivo `.github/workflows/iara-review.yml`:
+Crie o arquivo `.github/workflows/iara-review.yml`.
+
+**Com OpenRouter (padrão, modelos gratuitos):**
 
 ```yaml
 name: Iara Code Review
@@ -210,21 +261,64 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+**Com Anthropic Claude:**
+
+```yaml
+      - name: Run Iara Code Review
+        uses: felipefernandes/iara@main
+        with:
+          provider: anthropic
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: "claude-sonnet-4-5-20250929"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Com OpenAI:**
+
+```yaml
+      - name: Run Iara Code Review
+        uses: felipefernandes/iara@main
+        with:
+          provider: openai
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          model: "gpt-4o"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Com Google Gemini:**
+
+```yaml
+      - name: Run Iara Code Review
+        uses: felipefernandes/iara@main
+        with:
+          provider: gemini
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          model: "gemini-2.5-flash"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 A Iara vai automaticamente:
 
 - Revisar o diff do Pull Request
 - Postar um comentário com o resultado da review
 
-### Opções adicionais
+### Todos os inputs disponíveis
 
 ```yaml
 - uses: felipefernandes/iara@main
   with:
-    openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-    model: 'google/gemini-2.0-flash-exp:free'   # Forçar modelo
-    config_path: '.iara.json'                     # Caminho do config
-    post_comment: 'true'                          # Postar comentário (default: true)
-    language: 'pt-br'                             # Idioma da review
+    provider: "openrouter"                         # openrouter (padrão), openai, gemini, anthropic
+    openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}  # quando provider=openrouter
+    openai_api_key: ${{ secrets.OPENAI_API_KEY }}          # quando provider=openai
+    gemini_api_key: ${{ secrets.GEMINI_API_KEY }}          # quando provider=gemini
+    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}    # quando provider=anthropic
+    model: "google/gemini-2.0-flash-exp:free"     # forçar modelo
+    config_path: ".iara.json"                     # caminho do config (padrão: .iara.json)
+    post_comment: "true"                           # postar comentário no PR (padrão: true)
+    language: "pt-br"                              # idioma da review
 ```
 
 ---
@@ -235,7 +329,8 @@ A Iara vai automaticamente:
 
 Vá em **Settings > CI/CD > Variables** e adicione:
 
-- `OPENROUTER_API_KEY`: Chave da API OpenRouter
+- A chave do seu provedor (ex: `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
+- `IARA_PROVIDER`: nome do provedor (ex: `anthropic`) — omita para usar OpenRouter por padrão
 - `GITLAB_TOKEN`: Personal/Project Access Token com scope `api` (necessário para comentários no MR)
 
 ### 2. Adicionar ao `.gitlab-ci.yml`
@@ -286,7 +381,15 @@ Um template completo está disponível em `gitlab-ci.yml`.
 
 ```bash
 pip install iara-reviewer
+
+# OpenRouter (padrão)
 export OPENROUTER_API_KEY="sk-or-..."
+git diff main...HEAD | iara
+
+# Anthropic Claude
+export IARA_PROVIDER="anthropic"
+export ANTHROPIC_API_KEY="sk-ant-..."
+export IARA_MODEL="claude-sonnet-4-5-20250929"
 git diff main...HEAD | iara
 ```
 
