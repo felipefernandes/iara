@@ -105,14 +105,8 @@ class CodeVisitor(ast.NodeVisitor):
                 if isinstance(base, ast.Name):
                     metadata["inherits"].append(base.id)
         
-        # Extract calls within this node
-        # We use a localized walk here as we only want calls *inside* this definition
-        for subnode in ast.walk(node):
-            if isinstance(subnode, ast.Call):
-                if isinstance(subnode.func, ast.Name):
-                    metadata["calls"].append(subnode.func.id)
-                elif isinstance(subnode.func, ast.Attribute):
-                        metadata["calls"].append(subnode.func.attr)
+        # Extract calls only from direct statements (not nested functions/classes)
+        metadata["calls"] = self._extract_calls_shallow(node)
 
         chunk = CodeChunk(
             id=f"{self.file_path}:{node.name}:{start_line}",
@@ -124,6 +118,35 @@ class CodeVisitor(ast.NodeVisitor):
             metadata=metadata
         )
         self.chunks.append(chunk)
+
+    def _extract_calls_shallow(self, node) -> list:
+        """Extract function/method calls from direct statements only.
+        
+        Unlike ast.walk(), this skips nested FunctionDef/AsyncFunctionDef/ClassDef
+        nodes, so calls inside nested definitions are not attributed to the parent.
+        This is O(n) on the node's direct children rather than O(n²) from ast.walk.
+        """
+        calls = []
+        for child in ast.iter_child_nodes(node):
+            # Skip nested definitions — they will be processed separately
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            # Check if the child itself is a Call
+            if isinstance(child, ast.Call):
+                self._collect_call_name(child, calls)
+            # Walk the child's subtree (but NOT nested defs)
+            for subnode in ast.walk(child):
+                if isinstance(subnode, ast.Call):
+                    self._collect_call_name(subnode, calls)
+        return calls
+
+    @staticmethod
+    def _collect_call_name(call_node, calls):
+        """Extract the function name from an ast.Call node."""
+        if isinstance(call_node.func, ast.Name):
+            calls.append(call_node.func.id)
+        elif isinstance(call_node.func, ast.Attribute):
+            calls.append(call_node.func.attr)
 
 
 class Indexer:
@@ -154,7 +177,6 @@ class Indexer:
             if any(ign in root.split(os.sep) for ign in self.ignore_patterns):
                 continue
 
-            # Filtering ignored directories
             # Filtering ignored directories
             dirs[:] = [d for d in dirs if d not in self.ignore_patterns]
             

@@ -42,6 +42,32 @@ class MyClass(BaseClass):
         method_chunk = next(c for c in chunks if c.metadata["name"] == "method_two")
         self.assertIn("method_one", method_chunk.metadata["calls"])
 
+    def test_shallow_call_extraction(self):
+        """Regression: calls in nested functions should NOT appear in parent metadata."""
+        code = """
+class Outer:
+    def outer_method(self):
+        top_level_call()
+    
+    def inner_container(self):
+        def nested_helper():
+            nested_only_call()
+        nested_helper()
+"""
+        chunks = self.chunker.chunk_file("test.py", code)
+        
+        # Find the class chunk
+        class_chunk = next(c for c in chunks if c.type == "class")
+        # The class itself should NOT have any calls (its methods are separate chunks)
+        # Calls inside methods are counted per-method, not at class level
+        self.assertNotIn("nested_only_call", class_chunk.metadata["calls"])
+        
+        # Find inner_container method
+        container = next(c for c in chunks if c.metadata["name"] == "inner_container")
+        # inner_container directly calls nested_helper(), but NOT nested_only_call()
+        self.assertIn("nested_helper", container.metadata["calls"])
+        self.assertNotIn("nested_only_call", container.metadata["calls"])
+
     def test_chunk_python_async(self):
         code = """
 async def async_func():
