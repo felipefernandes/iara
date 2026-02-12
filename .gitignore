@@ -8,3 +8,4 @@ build/
 nul
 .claude/settings.local.json
 .assets/*.psd
+.iara/

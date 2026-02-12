@@ -222,6 +222,13 @@ def _show_next_steps():
     print("    git diff main | iara          # Review a diff")
     print("    iara --scan ./src             # Scan a directory")
     print("    iara auth status              # Check auth status")
+    
+    # Check for RAG support
+    try:
+        import iara.memory.lancedb_store  # noqa
+        print("    iara memory index             # Index codebase for Context-Aware Reviews 🧠")
+    except ImportError:
+        print("    pip install iara-reviewer[rag] # Enable Context-Aware Reviews (RAG) 🧠")
     print()
 
 

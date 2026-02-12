@@ -12,6 +12,14 @@ from iara.models import PROVIDER_CONFIGS, FREE_MODELS
 from iara.auth import normalize_provider, SUPPORTED_PROVIDERS
 from iara.prompt import generate_system_prompt
 
+# Optional RAG imports
+try:
+    from iara.memory.lancedb_store import LanceDBMemory
+    from iara.memory.retriever import Retriever
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+
 
 def _extract_error_message(status_code: int, body: str, model: str) -> str:
     """Extract a user-friendly error message from an API error response."""
@@ -129,7 +137,28 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
     if not diff.strip():
         return "✅ No code changes to review."
 
+    if not diff.strip():
+        return "✅ No code changes to review."
+
+    # RAG: Retrieve context if available
+    context_text = ""
+    if RAG_AVAILABLE:
+        try:
+            # TODO: Make persistence path configurable
+            memory = LanceDBMemory()
+            retriever = Retriever(memory)
+            # Retrieve up to 3 chunks to keep prompt size manageable
+            context_text = retriever.retrieve_context_for_diff(diff, max_chunks=3)
+            if context_text:
+                print("🧠 Context retrieved from memory.", file=sys.stderr)
+        except Exception as e:
+            # Fail silently on RAG errors to not break the review
+            print(f"⚠️ RAG Error: {e}", file=sys.stderr)
+
     system_prompt = generate_system_prompt(config)
+    
+    if context_text:
+        system_prompt += f"\n\n{context_text}"
 
     # Determine which model to use
     model_config = config.get("model", {})

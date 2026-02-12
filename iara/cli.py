@@ -4,6 +4,15 @@ import os
 import sys
 import argparse
 
+# Try loading .env if it exists
+if os.path.exists(".env"):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        print("⚠️ Warning: .env file detected but 'python-dotenv' is not installed. Variables may not be loaded.", file=sys.stderr)
+        print("   Run: pip install python-dotenv", file=sys.stderr)
+
 from iara.config import load_config
 from iara.reviewer import review_code
 from iara.scanner import scan_directory
@@ -34,7 +43,15 @@ def main():
     auth_sub.required = False
     auth_sub.add_parser("status", help="Check authentication status")
 
+    # iara memory
+    memory_parser = subparsers.add_parser("memory", help="Memory management (RAG)")
+    memory_sub = memory_parser.add_subparsers(dest="memory_command")
+    memory_sub.required = False
+    memory_sub.add_parser("index", help="Index the current directory")
+    memory_sub.add_parser("clear", help="Clear the memory index")
+
     args = parser.parse_args()
+
 
     # --- Subcommand routing ---
     if args.command == "init":
@@ -50,6 +67,32 @@ def main():
         else:
             auth_parser.print_help()
             return
+
+
+
+
+    if args.command == "memory":
+        try:
+            from iara.memory.lancedb_store import LanceDBMemory
+            from iara.memory.indexer import Indexer
+            
+            # TODO: Make persistence path configurable via .iara.json
+            memory = LanceDBMemory()
+        except ImportError:
+            print("❌ RAG dependencies not installed. Run `pip install iara-reviewer[rag]`", file=sys.stderr)
+            sys.exit(1)
+
+        if args.memory_command == "index":
+            indexer = Indexer(memory)
+            print(f"🧠 Indexing codebase in {os.getcwd()}...", file=sys.stderr)
+            indexer.index_project(os.getcwd())
+            print("✅ Indexing complete.", file=sys.stderr)
+        elif args.memory_command == "clear":
+            memory.clear()
+            print("🗑️ Memory cleared.", file=sys.stderr)
+        else:
+            memory_parser.print_help()
+        return
 
     # Load config
     config = load_config()

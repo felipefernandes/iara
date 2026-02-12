@@ -170,6 +170,39 @@ A ready-to-use example is available at `iara-example.json`.
 
 ---
 
+
+## 🧠 Memory (RAG) [New]
+
+Iara now supports a local **Retrieval-Augmented Generation (RAG)** system to provide context-aware reviews.
+
+### 1. Install Dependencies
+```bash
+pip install iara-reviewer[rag]
+# or
+pip install lancedb sentence-transformers torch numpy
+```
+
+### 2. Index Your Codebase
+Run this command in your project root to create the local vector index:
+```bash
+iara memory index
+```
+This will parse your code (extracting functions, classes, and calls) and store it in `.iara/data/lancedb`.
+
+### 3. Review with Context
+Just run the review command as usual. Iara will automatically use the memory to retrieve relevant context for the changed code.
+```bash
+git diff main | iara
+```
+
+### 4. Manage Memory
+To clear the index:
+```bash
+iara memory clear
+```
+
+---
+
 ## 🏃 How to Use
 
 ### Via Pipe (Git Diff)

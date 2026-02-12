@@ -305,6 +305,35 @@ class TestReviewCode(unittest.TestCase):
         result = review_code("diff content", "sk-test", config)
         self.assertIn("No model configured", result)
 
+    def test_reviewer_with_rag_enabled_but_no_context(self):
+        """Test that reviewer works when RAG is enabled but returns no results."""
+        config = {
+            "model": {"provider": "openai", "preferred": "gpt-4o"},
+            "memory": {"enabled": True}, 
+            "review": {"ignore_patterns": []}
+        }
+        
+        # Patch the functions in iara.reviewer, not class methods
+        with patch('iara.reviewer.LanceDBMemory') as mock_memory_cls, \
+             patch('iara.reviewer.Retriever') as mock_retriever_cls, \
+             patch('iara.reviewer.review_code_with_model') as mock_review_func:
+                 
+            mock_memory = mock_memory_cls.return_value
+            mock_retriever = mock_retriever_cls.return_value
+            mock_retriever.retrieve_context_for_diff.return_value = "" # No context found
+            
+            mock_review_func.return_value = "LGTM"
+            
+            diff = "diff --git a/foo.py b/foo.py\n+print('hello')"
+            
+            # We need to ensure review_code can be imported/called.
+            # It is imported at top of this file.
+            result = review_code(diff, "fake-key", config)
+            
+            self.assertIn("LGTM", result)
+            # Ensure retrieval was attempted
+            mock_retriever.retrieve_context_for_diff.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()

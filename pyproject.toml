@@ -24,6 +24,14 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 
+[project.optional-dependencies]
+rag = [
+    "lancedb>=0.5.0",
+    "sentence-transformers>=2.2.0",
+    "torch>=2.0.0",
+    "numpy>=1.24.0"
+]
+
 [project.urls]
 Repository = "https://github.com/felipefernandes/iara"
 Issues = "https://github.com/felipefernandes/iara/issues"
