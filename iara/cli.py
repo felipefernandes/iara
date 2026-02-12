@@ -60,9 +60,7 @@ def main():
             return
 
 
-    if not args.command:
-        parser.print_help()
-        return
+
 
     if args.command == "memory":
         try:
