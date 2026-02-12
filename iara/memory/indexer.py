@@ -1,8 +1,11 @@
 import os
 import ast
 import sys
+import logging
 from typing import List, Generator
 from iara.memory.interface import CodeChunk
+
+logger = logging.getLogger(__name__)
 
 class CodeChunker:
     """Splits code into chunks for indexing."""
@@ -17,7 +20,14 @@ class CodeChunker:
         return self._chunk_text(file_path, content)
 
     def _chunk_python(self, file_path: str, content: str) -> List[CodeChunk]:
-        chunks = []
+        """
+        Chunks Python code using AST to identify functions and classes.
+        
+        This method parses the python content into an AST. It then uses a
+        CodeVisitor to walk the tree and extract CodeChunks for each
+        FunctionDef, AsyncFunctionDef, and ClassDef. If syntax errors occur,
+        it falls back to text-based chunking.
+        """
         try:
             tree = ast.parse(content)
         except SyntaxError:
@@ -26,6 +36,32 @@ class CodeChunker:
         visitor = CodeVisitor(file_path, content)
         visitor.visit(tree)
         return visitor.chunks
+
+    def _chunk_text(self, file_path: str, content: str) -> List[CodeChunk]:
+        """Simple chunking for non-code files."""
+        # Simple strategy: Max 100 lines per chunk
+        lines = content.splitlines()
+        chunks = []
+        
+        for i in range(0, len(lines), self.MAX_TEXT_CHUNK_LINES):
+            chunk_lines = lines[i:i + self.MAX_TEXT_CHUNK_LINES]
+            chunk_content = "\n".join(chunk_lines)
+            chunks.append(CodeChunk(
+                id=f"{file_path}:{i+1}",
+                content=chunk_content,
+                file_path=file_path,
+                start_line=i + 1,
+                end_line=i + len(chunk_lines),
+                type="text",
+                metadata={
+                    "name": "", 
+                    "docstring": "",
+                    "calls": [],
+                    "inherits": []
+                }
+            ))
+            
+        return chunks
 
 
 class CodeVisitor(ast.NodeVisitor):
@@ -89,32 +125,6 @@ class CodeVisitor(ast.NodeVisitor):
         )
         self.chunks.append(chunk)
 
-    def _chunk_text(self, file_path: str, content: str) -> List[CodeChunk]:
-        """Simple chunking for non-code files."""
-        # Simple strategy: Max 100 lines per chunk
-        lines = content.splitlines()
-        chunks = []
-        
-        
-        for i in range(0, len(lines), self.MAX_TEXT_CHUNK_LINES):
-            chunk_lines = lines[i:i + self.MAX_TEXT_CHUNK_LINES]
-            chunk_content = "\n".join(chunk_lines)
-            chunks.append(CodeChunk(
-                id=f"{file_path}:{i+1}",
-                content=chunk_content,
-                file_path=file_path,
-                start_line=i + 1,
-                end_line=i + len(chunk_lines),
-                type="text",
-                metadata={
-                    "name": "", 
-                    "docstring": "",
-                    "calls": [],
-                    "inherits": []
-                }
-            ))
-            
-        return chunks
 
 class Indexer:
     """Walks directory and indexes files."""
@@ -134,6 +144,10 @@ class Indexer:
 
     def index_project(self, root_path: str):
         all_chunks = []
+        file_count = 0
+        
+        print(f"🧠 Scanning {root_path}...", file=sys.stderr)
+        
         for root, dirs, files in os.walk(root_path):
             # Filtering ignored directories
             dirs[:] = [d for d in dirs if d not in self.ignore_patterns]
@@ -153,8 +167,11 @@ class Indexer:
                     # simplistic binary check
                     with open(file_path, "r", encoding="utf-8", errors="strict") as f:
                         content = f.read()
-                        
-                    print(f"📄 Indexing: {rel_path}", file=sys.stderr)
+                    
+                    # Progress Indicator (every 10 files)
+                    file_count += 1
+                    if file_count % 10 == 0:
+                         print(f"   Indexed {file_count} files...", file=sys.stderr)
                         
                     chunks = self.chunker.chunk_file(rel_path, content)
                     all_chunks.extend(chunks)
@@ -165,7 +182,10 @@ class Indexer:
                         
                 except Exception as e:
                     # Log error but continue
-                    print(f"Skipping {rel_path}: {e}")
+                    if "utf-8" not in str(e): # Ignore common encoding errors silentlyish
+                        print(f"Skipping {rel_path}: {e}")
                     
         if all_chunks:
             self.memory.index_chunks(all_chunks)
+            
+        print(f"✅ Indexed {file_count} files.", file=sys.stderr)
