@@ -149,6 +149,12 @@ class Indexer:
         print(f"🧠 Scanning {root_path}...", file=sys.stderr)
         
         for root, dirs, files in os.walk(root_path):
+            # Defensive check: if we somehow entered an ignored directory
+            # (e.g. valid for some os.walk implementations or mocks)
+            if any(ign in root.split(os.sep) for ign in self.ignore_patterns):
+                continue
+
+            # Filtering ignored directories
             # Filtering ignored directories
             dirs[:] = [d for d in dirs if d not in self.ignore_patterns]
             

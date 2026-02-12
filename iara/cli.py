@@ -4,6 +4,12 @@ import os
 import sys
 import argparse
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass # python-dotenv not installed, ignore
+
 from iara.config import load_config
 from iara.reviewer import review_code
 from iara.scanner import scan_directory
