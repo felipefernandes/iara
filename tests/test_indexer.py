@@ -223,3 +223,168 @@ class TestIndexer(unittest.TestCase):
             
             # Should have indexed good.py
             self.assertTrue(mock_memory.index_chunks.called)
+
+    def test_index_project_invalid_path(self):
+        """Test that index_project raises FileNotFoundError for nonexistent paths."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        with self.assertRaises(FileNotFoundError):
+            indexer.index_project('/nonexistent/path/xyz')
+
+    def test_index_project_not_a_directory(self):
+        """Test that index_project raises NotADirectoryError for file paths."""
+        import tempfile
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        # Create a temporary file (not directory)
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            temp_path = f.name
+        try:
+            with self.assertRaises(NotADirectoryError):
+                indexer.index_project(temp_path)
+        finally:
+            os.remove(temp_path)
+
+    def test_index_project_skips_dotfiles(self):
+        """Test that files starting with '.' are skipped."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', mock_open(read_data="content")) as mock_file, \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True), \
+             patch('sys.stderr'):
+            
+            mock_walk.return_value = [
+                ('root', [], ['.hidden', 'visible.py'])
+            ]
+            
+            indexer.index_project('root')
+            
+            # Only visible.py should be opened, not .hidden
+            opened_files = [c[1][0] for c in mock_file.mock_calls if c[0] == '' and c[1]]
+            opened_files = [os.path.normpath(p) for p in opened_files]
+            self.assertFalse(any('.hidden' in p for p in opened_files))
+            self.assertTrue(any('visible.py' in p for p in opened_files))
+
+    def test_index_project_unicode_error(self):
+        """Test that UnicodeDecodeError is handled gracefully (binary files)."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        
+        m_open = MagicMock()
+        m_open.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "invalid byte")
+        
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', m_open), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True), \
+             patch('sys.stderr'):
+            
+            mock_walk.return_value = [
+                ('root', [], ['binary.dat'])
+            ]
+            
+            # Should not raise
+            indexer.index_project('root')
+            # No chunks should be indexed
+            mock_memory.index_chunks.assert_not_called()
+
+    def test_index_project_unexpected_error(self):
+        """Test that unexpected errors are caught and logged."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        
+        m_open = MagicMock()
+        m_open.side_effect = RuntimeError("Something unexpected")
+        
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', m_open), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True), \
+             patch('sys.stderr'):
+            
+            mock_walk.return_value = [
+                ('root', [], ['problem.py'])
+            ]
+            
+            # Should not raise
+            indexer.index_project('root')
+            mock_memory.index_chunks.assert_not_called()
+
+    def test_index_project_progress_indicator(self):
+        """Test that progress is printed every 10 files."""
+        import tempfile, shutil
+        
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        
+        # Create 11 files to trigger the progress indicator
+        temp_dir = tempfile.mkdtemp()
+        try:
+            for i in range(11):
+                with open(os.path.join(temp_dir, f"file{i}.py"), "w") as f:
+                    f.write(f"def func{i}(): pass")
+            
+            with patch('sys.stderr') as mock_stderr:
+                indexer.index_project(temp_dir)
+                
+                # The progress print should have been called (at file 10)
+                stderr_output = "".join(str(c) for c in mock_stderr.write.call_args_list)
+                self.assertIn("10", stderr_output)
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_index_project_batch_flush(self):
+        """Test that chunks are flushed in batches of 100."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        
+        # Make chunker return many chunks per file to trigger batch flush
+        indexer.chunker = MagicMock()
+        chunks_batch = [CodeChunk(
+            id=f"chunk-{i}", content=f"code-{i}", file_path="big.py",
+            start_line=i, end_line=i, type="function"
+        ) for i in range(50)]
+        indexer.chunker.chunk_file.return_value = chunks_batch
+        
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', mock_open(read_data="code")), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True), \
+             patch('sys.stderr'):
+            
+            # 3 files x 50 chunks = 150 chunks. Should flush at 100 and then at final.
+            mock_walk.return_value = [
+                ('root', [], ['a.py', 'b.py', 'c.py'])
+            ]
+            
+            indexer.index_project('root')
+            
+            # Should have been called at least twice (batch at 100 + final flush)
+            self.assertGreaterEqual(mock_memory.index_chunks.call_count, 2)
+
+
+class TestCodeChunkRepr(unittest.TestCase):
+    def test_repr_with_metadata(self):
+        chunk = CodeChunk(
+            id="test:foo:1", content="def foo(): pass",
+            file_path="main.py", start_line=1, end_line=3,
+            type="function", metadata={"name": "foo", "calls": []}
+        )
+        result = repr(chunk)
+        self.assertIn("function", result)
+        self.assertIn("foo", result)
+        self.assertIn("main.py", result)
+        self.assertIn("1-3", result)
+
+    def test_repr_without_metadata(self):
+        chunk = CodeChunk(
+            id="test:1:1", content="some text",
+            file_path="notes.txt", start_line=1, end_line=10,
+            type="text", metadata=None
+        )
+        result = repr(chunk)
+        self.assertIn("text", result)
+        self.assertIn("notes.txt", result)
