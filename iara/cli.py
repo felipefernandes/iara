@@ -59,6 +59,11 @@ def main():
             auth_parser.print_help()
             return
 
+
+    if not args.command:
+        parser.print_help()
+        return
+
     if args.command == "memory":
         try:
             from iara.memory.lancedb_store import LanceDBMemory

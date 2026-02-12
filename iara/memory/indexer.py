@@ -7,6 +7,8 @@ from iara.memory.interface import CodeChunk
 class CodeChunker:
     """Splits code into chunks for indexing."""
 
+    MAX_TEXT_CHUNK_LINES = 100
+
     def chunk_file(self, file_path: str, content: str) -> List[CodeChunk]:
         _, ext = os.path.splitext(file_path)
         if ext == ".py":
@@ -21,69 +23,81 @@ class CodeChunker:
         except SyntaxError:
             return self._chunk_text(file_path, content)
 
-        lines = content.splitlines()
+        visitor = CodeVisitor(file_path, content)
+        visitor.visit(tree)
+        return visitor.chunks
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                start_line = node.lineno
-                end_line = node.end_lineno if hasattr(node, "end_lineno") else start_line
-                
-                # Extract source code for this node
-                # Note: This is a simple extraction. Ideally we'd capture decorators too.
-                # ast.get_source_segment is available in Python 3.8+
-                chunk_content = ast.get_source_segment(content, node)
-                
-                if not chunk_content:
-                    continue
 
-                # Graph-Lite Metadata Extraction
-                metadata = {
-                    "name": node.name,
-                    "docstring": ast.get_docstring(node),
-                    "calls": [],
-                    "inherits": []
-                }
-                
-                if isinstance(node, ast.ClassDef):
-                    chunk_type = "class"
-                    for base in node.bases:
-                        if isinstance(base, ast.Name):
-                            metadata["inherits"].append(base.id)
-                else:
-                    chunk_type = "function"
-                
-                # Extract calls within this function/method
-                for subnode in ast.walk(node):
-                    if isinstance(subnode, ast.Call):
-                        if isinstance(subnode.func, ast.Name):
-                            metadata["calls"].append(subnode.func.id)
-                        elif isinstance(subnode.func, ast.Attribute):
-                             metadata["calls"].append(subnode.func.attr)
+class CodeVisitor(ast.NodeVisitor):
+    def __init__(self, file_path: str, content: str):
+        self.file_path = file_path
+        self.content = content
+        self.chunks = []
 
-                chunk = CodeChunk(
-                    id=f"{file_path}:{node.name}:{start_line}",
-                    content=chunk_content,
-                    file_path=file_path,
-                    start_line=start_line,
-                    end_line=end_line,
-                    type=chunk_type,
-                    metadata=metadata
-                )
-                chunks.append(chunk)
+    def visit_FunctionDef(self, node):
+        self._process_node(node, "function")
+        self.generic_visit(node)
 
-        # Also capture top-level module docstrings or assignments? 
-        # For now, let's keep it to functions and classes to reduce noise.
-        return chunks
+    def visit_AsyncFunctionDef(self, node):
+        self._process_node(node, "function")
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node):
+        self._process_node(node, "class")
+        self.generic_visit(node)
+
+    def _process_node(self, node, chunk_type):
+        start_line = node.lineno
+        end_line = node.end_lineno if hasattr(node, "end_lineno") else start_line
+        
+        # Extract source code
+        chunk_content = ast.get_source_segment(self.content, node)
+        
+        if not chunk_content:
+            return
+
+        # Metadata
+        metadata = {
+            "name": node.name,
+            "docstring": ast.get_docstring(node),
+            "calls": [],
+            "inherits": []
+        }
+        
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                if isinstance(base, ast.Name):
+                    metadata["inherits"].append(base.id)
+        
+        # Extract calls within this node
+        # We use a localized walk here as we only want calls *inside* this definition
+        for subnode in ast.walk(node):
+            if isinstance(subnode, ast.Call):
+                if isinstance(subnode.func, ast.Name):
+                    metadata["calls"].append(subnode.func.id)
+                elif isinstance(subnode.func, ast.Attribute):
+                        metadata["calls"].append(subnode.func.attr)
+
+        chunk = CodeChunk(
+            id=f"{self.file_path}:{node.name}:{start_line}",
+            content=chunk_content,
+            file_path=self.file_path,
+            start_line=start_line,
+            end_line=end_line,
+            type=chunk_type,
+            metadata=metadata
+        )
+        self.chunks.append(chunk)
 
     def _chunk_text(self, file_path: str, content: str) -> List[CodeChunk]:
         """Simple chunking for non-code files."""
         # Simple strategy: Max 100 lines per chunk
         lines = content.splitlines()
         chunks = []
-        chunk_size = 100
         
-        for i in range(0, len(lines), chunk_size):
-            chunk_lines = lines[i:i + chunk_size]
+        
+        for i in range(0, len(lines), self.MAX_TEXT_CHUNK_LINES):
+            chunk_lines = lines[i:i + self.MAX_TEXT_CHUNK_LINES]
             chunk_content = "\n".join(chunk_lines)
             chunks.append(CodeChunk(
                 id=f"{file_path}:{i+1}",
