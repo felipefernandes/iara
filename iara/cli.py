@@ -4,11 +4,14 @@ import os
 import sys
 import argparse
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass # python-dotenv not installed, ignore
+# Try loading .env if it exists
+if os.path.exists(".env"):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        print("⚠️ Warning: .env file detected but 'python-dotenv' is not installed. Variables may not be loaded.", file=sys.stderr)
+        print("   Run: pip install python-dotenv", file=sys.stderr)
 
 from iara.config import load_config
 from iara.reviewer import review_code
