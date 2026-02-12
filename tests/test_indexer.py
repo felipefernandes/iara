@@ -156,7 +156,9 @@ class TestIndexer(unittest.TestCase):
         indexer = Indexer(mock_memory)
         
         with patch('os.walk') as mock_walk, \
-             patch('builtins.open', mock_open(read_data="print('hello')")) as mock_file:
+             patch('builtins.open', mock_open(read_data="print('hello')")) as mock_file, \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True):
             
             mock_walk.return_value = [
                 ('root', ['.git', 'src'], ['ignored.pyc', 'valid.py']),
@@ -203,7 +205,9 @@ class TestIndexer(unittest.TestCase):
         
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', m_open), \
-             patch('sys.stderr'):
+             patch('sys.stderr'), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True):
             
             mock_walk.return_value = [
                 ('root', [], ['bad.py', 'good.py'])

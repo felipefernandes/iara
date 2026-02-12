@@ -166,6 +166,20 @@ class Indexer:
         ])
 
     def index_project(self, root_path: str):
+        """Index all files in a project directory.
+        
+        Args:
+            root_path: Absolute path to the project root directory.
+            
+        Raises:
+            FileNotFoundError: If root_path does not exist.
+            NotADirectoryError: If root_path is not a directory.
+        """
+        if not os.path.exists(root_path):
+            raise FileNotFoundError(f"Path does not exist: {root_path}")
+        if not os.path.isdir(root_path):
+            raise NotADirectoryError(f"Path is not a directory: {root_path}")
+
         all_chunks = []
         file_count = 0
         
@@ -208,10 +222,13 @@ class Indexer:
                         self.memory.index_chunks(all_chunks)
                         all_chunks = []
                         
+                except (UnicodeDecodeError, UnicodeError):
+                    # Binary or non-UTF-8 file — skip silently
+                    logger.debug("Skipping binary/non-UTF-8 file: %s", rel_path)
+                except OSError as e:
+                    logger.warning("Could not read %s: %s", rel_path, e)
                 except Exception as e:
-                    # Log error but continue
-                    if "utf-8" not in str(e): # Ignore common encoding errors silentlyish
-                        print(f"Skipping {rel_path}: {e}")
+                    logger.warning("Unexpected error processing %s: %s", rel_path, e)
                     
         if all_chunks:
             self.memory.index_chunks(all_chunks)

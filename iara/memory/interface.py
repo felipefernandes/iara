@@ -13,6 +13,10 @@ class CodeChunk:
     type: str  # 'function', 'class', 'markdown', etc.
     metadata: Optional[Dict[str, Any]] = None
 
+    def __repr__(self):
+        name = self.metadata.get("name", "") if self.metadata else ""
+        return f"CodeChunk({self.type} '{name}' @ {self.file_path}:{self.start_line}-{self.end_line})"
+
 class MemoryInterface(ABC):
     """Abstract base class for Iara's memory system."""
 
