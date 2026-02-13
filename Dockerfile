@@ -8,6 +8,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends git curl jq && \
     rm -rf /var/lib/apt/lists/*
 
+# Set working directory first
+WORKDIR /app
+
 # Copy the package (zero external dependencies - no pip install needed)
 COPY iara/ /app/iara/
 COPY pyproject.toml /app/pyproject.toml
@@ -19,7 +22,5 @@ COPY entrypoint.sh /app/entrypoint.sh
 RUN pip install --no-cache-dir ".[rag]"
 
 RUN chmod +x /app/entrypoint.sh
-
-WORKDIR /app
 
 ENTRYPOINT ["/app/entrypoint.sh"]
