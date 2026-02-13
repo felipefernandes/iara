@@ -273,13 +273,18 @@ class TestIndexer(unittest.TestCase):
         mock_memory = MagicMock()
         indexer = Indexer(mock_memory)
         
-        m_open = MagicMock()
-        m_open.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "invalid byte")
+        real_open = open
+        def smart_open(file, *args, **kwargs):
+            # Allow hash file operations to succeed normally
+            if 'file_hashes' in str(file):
+                return real_open(os.devnull, *args, **kwargs)
+            raise UnicodeDecodeError("utf-8", b"", 0, 1, "invalid byte")
         
         with patch('os.walk') as mock_walk, \
-             patch('builtins.open', m_open), \
+             patch('builtins.open', side_effect=smart_open), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
+             patch('os.makedirs'), \
              self.assertLogs('iara.memory.indexer', level='DEBUG') as cm:
             
             mock_walk.return_value = [
@@ -300,13 +305,18 @@ class TestIndexer(unittest.TestCase):
         mock_memory = MagicMock()
         indexer = Indexer(mock_memory)
         
-        m_open = MagicMock()
-        m_open.side_effect = RuntimeError("Something unexpected")
+        real_open = open
+        def smart_open(file, *args, **kwargs):
+            # Allow hash file operations to succeed normally
+            if 'file_hashes' in str(file):
+                return real_open(os.devnull, *args, **kwargs)
+            raise RuntimeError("Something unexpected")
         
         with patch('os.walk') as mock_walk, \
-             patch('builtins.open', m_open), \
+             patch('builtins.open', side_effect=smart_open), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
+             patch('os.makedirs'), \
              self.assertLogs('iara.memory.indexer', level='WARNING') as cm:
             
             mock_walk.return_value = [
