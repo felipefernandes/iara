@@ -50,4 +50,4 @@ outputs:
 
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/felipefernandes/iara-reviewer:latest'
+  image: 'Dockerfile'
