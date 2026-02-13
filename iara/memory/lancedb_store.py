@@ -9,6 +9,17 @@ class LanceDBMemory(MemoryInterface):
     """Memory implementation using LanceDB and local embeddings."""
 
     def __init__(self, persistence_path: str = ".iara/data/lancedb", embedding_model: str = "all-MiniLM-L6-v2"):
+        self.persistence_path = persistence_path
+        self.embedding_model_name = embedding_model
+        self.db = None
+        self.encoder = None
+        self.table_name = "code_chunks"
+
+    def _ensure_initialized(self):
+        """Lazy load dependencies and model."""
+        if self.db is not None and self.encoder is not None:
+            return
+
         try:
             import lancedb
             from sentence_transformers import SentenceTransformer
@@ -17,24 +28,26 @@ class LanceDBMemory(MemoryInterface):
                 "RAG dependencies not installed. Please install with `pip install iara-reviewer[rag]`"
             )
 
-        self.db = lancedb.connect(persistence_path)
-        self.encoder = SentenceTransformer(embedding_model)
-        self.table_name = "code_chunks"
-        
-        # Ensure table exists
-        if self.table_name not in self.db.table_names():
-            # Define schema explicitly or rely on auto-schema from data
-            # For simplicity, we'll let it infer from the first batch of data,
-            # but we need to handle the case where it's empty.
-            pass
+        if self.db is None:
+            self.db = lancedb.connect(self.persistence_path)
+            
+        if self.encoder is None:
+            self.encoder = SentenceTransformer(self.embedding_model_name)
+
+        # Ensure table exists (check only once on init)
+        # For simplicity, we'll imply it's handled by lancedb or our logic below
+        pass
 
     def _embed(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings for a list of texts."""
+        self._ensure_initialized()
         return self.encoder.encode(texts).tolist()
 
     def index_chunks(self, chunks: List[CodeChunk]):
         if not chunks:
             return
+
+        self._ensure_initialized()
 
         data = []
         texts_to_embed = [chunk.content for chunk in chunks]
@@ -61,6 +74,7 @@ class LanceDBMemory(MemoryInterface):
         logger.info(f"Indexed {len(chunks)} chunks into LanceDB.")
 
     def retrieve(self, query: str, n_results: int = 5) -> List[CodeChunk]:
+        self._ensure_initialized()
         if self.table_name not in self.db.table_names():
             return []
 
@@ -84,6 +98,7 @@ class LanceDBMemory(MemoryInterface):
         return chunks
 
     def clear(self):
+        self._ensure_initialized()
         if self.table_name in self.db.table_names():
             self.db.drop_table(self.table_name)
             logger.info("Cleared LanceDB memory.")

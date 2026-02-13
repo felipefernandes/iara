@@ -1,0 +1,33 @@
+F\U0001f9e0 Scanning root...
+\u2705 Indexed 3 files.
+....E
+======================================================================
+ERROR: test_reviewer_with_rag_enabled_but_no_context (tests.test_coverage_improvements.TestCoverageImprovements.test_reviewer_with_rag_enabled_but_no_context)
+Test that reviewer works when RAG is enabled but returns no results.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\felip\OneDrive\Documents\Gazeus\iara-bot-reviewer\tests\test_coverage_improvements.py", line 136, in test_reviewer_with_rag_enabled_but_no_context
+    patch('iara.reviewer.Reviewer._call_llm') as mock_call_llm:
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\Lib\unittest\mock.py", line 1481, in __enter__
+    self.target = self.getter()
+                  ~~~~~~~~~~~^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\Lib\pkgutil.py", line 528, in resolve_name
+    result = getattr(result, p)
+AttributeError: module 'iara.reviewer' has no attribute 'Reviewer'. Did you mean: 'Retriever'?
+
+======================================================================
+FAIL: test_indexer_handles_read_errors (tests.test_coverage_improvements.TestCoverageImprovements.test_indexer_handles_read_errors)
+Test that indexer continues despite file read errors.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\felip\OneDrive\Documents\Gazeus\iara-bot-reviewer\tests\test_coverage_improvements.py", line 82, in test_indexer_handles_read_errors
+    self.assertTrue(mock_memory.index_chunks.called)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.010s
+
+FAILED (failures=1, errors=1)
+Skipping bad.py: Permission denied
