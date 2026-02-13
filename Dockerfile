@@ -1,3 +1,14 @@
+# =============================================================================
+# NOTE: This Dockerfile is NOT used by the GitHub Action anymore.
+# The Action now uses a Composite Action (runs: using: 'composite') for
+# better performance and pip caching. See action.yml for details.
+#
+# This Dockerfile is kept for:
+#   - Local development and testing
+#   - Docker Hub distribution
+#   - Self-hosted runner setups that prefer containers
+# =============================================================================
+
 FROM python:3.11-slim
 
 LABEL maintainer="Felipe Fernandes"
