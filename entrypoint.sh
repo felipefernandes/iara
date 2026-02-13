@@ -128,6 +128,15 @@ if [ -f "/github/workspace/${CONFIG_PATH}" ]; then
   cp "/github/workspace/${CONFIG_PATH}" /app/.iara.json
 fi
 
+# --- Run Indexing (Optional) ---
+INDEX_CODEBASE="${INPUT_INDEX_CODEBASE:-false}"
+if [ "$INDEX_CODEBASE" = "true" ]; then
+  echo "🧠 Indexing codebase for RAG memory..."
+  cd /github/workspace
+  PYTHONPATH=/app python3 -m iara memory index || echo "::warning::Failed to index codebase via RAG."
+  cd /app
+fi
+
 # --- Run Iara ---
 cd /github/workspace
 REVIEW=$(PYTHONPATH=/app python3 -m iara 2>/tmp/iara_stderr.txt || true)

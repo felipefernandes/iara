@@ -39,6 +39,10 @@ inputs:
     description: 'Review output language (en, pt-br, es, fr, etc.). Defaults to config file or en.'
     required: false
     default: ''
+  index_codebase:
+    description: 'Whether to index the codebase for RAG memory (true/false). Defaults to false.'
+    required: false
+    default: 'false'
 
 outputs:
   review:

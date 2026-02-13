@@ -20,5 +20,6 @@ jobs:
         uses: felipefernandes/iara@main
         with:
           openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          index_codebase: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
