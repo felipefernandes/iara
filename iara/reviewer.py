@@ -218,3 +218,45 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
 
     print("❌ All models failed.", file=sys.stderr)
     return f"❌ Could not review with any available model.\nErrors:\n" + "\n".join(errors)
+
+
+class Reviewer:
+    """
+    Deprecated: Wrapper class for backward compatibility.
+    Use functional API (review_code) instead.
+    """
+    def __init__(self, api_key: str = None, config: dict = None):
+        import warnings
+        warnings.warn(
+            "The 'Reviewer' class is deprecated and will be removed in a future version. "
+            "Please use the 'review_code' function instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        self.api_key = api_key
+        self.config = config or {}
+
+    def review(self, diff: str) -> str:
+        """Alias for review_code using instance config."""
+        # Resolve API key if not provided in init
+        api_key = self.api_key
+        if not api_key:
+             from iara.auth import resolve_api_key, normalize_provider
+             provider = self.config.get("model", {}).get("provider", "openrouter")
+             provider = normalize_provider(provider)
+             key, _ = resolve_api_key(provider)
+             api_key = key
+        
+        return review_code(diff, api_key, self.config)
+
+    def review_with_model(self, diff: str, model: str, system_prompt: str, provider: str) -> str:
+        """Alias for review_code_with_model."""
+        api_key = self.api_key
+        if not api_key:
+             from iara.auth import resolve_api_key, normalize_provider
+             # Use the provider passed in 
+             p = normalize_provider(provider)
+             key, _ = resolve_api_key(p)
+             api_key = key
+
+        return review_code_with_model(diff, api_key, model, system_prompt, provider)
