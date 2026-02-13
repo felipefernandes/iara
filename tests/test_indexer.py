@@ -280,7 +280,7 @@ class TestIndexer(unittest.TestCase):
              patch('builtins.open', m_open), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
-             patch('sys.stderr'):
+             self.assertLogs('iara.memory.indexer', level='DEBUG') as cm:
             
             mock_walk.return_value = [
                 ('root', [], ['binary.dat'])
@@ -288,6 +288,10 @@ class TestIndexer(unittest.TestCase):
             
             # Should not raise
             indexer.index_project('root')
+            
+            # Verify log message
+            self.assertTrue(any("Skipping binary/non-UTF-8" in output for output in cm.output))
+            
             # No chunks should be indexed
             mock_memory.index_chunks.assert_not_called()
 
@@ -303,7 +307,7 @@ class TestIndexer(unittest.TestCase):
              patch('builtins.open', m_open), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
-             patch('sys.stderr'):
+             self.assertLogs('iara.memory.indexer', level='WARNING') as cm:
             
             mock_walk.return_value = [
                 ('root', [], ['problem.py'])
@@ -311,6 +315,10 @@ class TestIndexer(unittest.TestCase):
             
             # Should not raise
             indexer.index_project('root')
+            
+            # Verify log message
+            self.assertTrue(any("Unexpected error processing" in output for output in cm.output))
+            
             mock_memory.index_chunks.assert_not_called()
 
     def test_index_project_progress_indicator(self):
