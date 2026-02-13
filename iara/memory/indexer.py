@@ -174,7 +174,8 @@ class Indexer:
             try:
                 with open(self.hashes_file, "r") as f:
                     return json.load(f)
-            except:
+            except (json.JSONDecodeError, IOError, OSError) as e:
+                logger.warning("Failed to load file hashes: %s", e)
                 return {}
         return {}
 
