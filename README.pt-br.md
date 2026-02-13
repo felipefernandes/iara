@@ -8,7 +8,7 @@ Iara é uma ferramenta de revisão de código automatizada, agnóstica a projeto
 
 ---
 
-[![🧜‍♀️ Iara Code Review](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml) [![🧪 Tests](https://github.com/felipefernandes/iara/actions/workflows/tests.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/tests.yml) [![codecov](https://codecov.io/gh/felipefernandes/iara/branch/main/graph/badge.svg)](https://codecov.io/gh/felipefernandes/iara) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![🧜‍♀️ Iara Code Review](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml) [![🧪 Tests](https://github.com/felipefernandes/iara/actions/workflows/tests.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/tests.yml) [![codecov](https://codecov.io/gh/felipefernandes/iara/branch/main/graph/badge.svg)](https://codecov.io/gh/felipefernandes/iara) [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Iara%20Code%20Reviewer-blue?logo=github)](https://github.com/marketplace/actions/iara-code-reviewer) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
@@ -217,6 +217,8 @@ git diff | iara
 
 ## 🐙 Integração GitHub
 
+A Iara está disponível no [**GitHub Marketplace**](https://github.com/marketplace/actions/iara-code-reviewer) — você pode adicioná-la ao seu repositório em poucos cliques. Sem Docker! A Iara roda como uma **Composite Action** leve diretamente no runner, com cache automático de pip para execução rápida.
+
 Adicione a Iara ao seu repositório GitHub em **2 passos**:
 
 ### 1. Configurar o secret
@@ -321,6 +323,7 @@ A Iara vai automaticamente:
     config_path: ".iara.json"                     # caminho do config (padrão: .iara.json)
     post_comment: "true"                           # postar comentário no PR (padrão: true)
     language: "pt-br"                              # idioma da review
+    index_codebase: "true"                         # habilitar memória RAG (padrão: false)
 ```
 
 ---

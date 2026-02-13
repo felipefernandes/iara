@@ -8,7 +8,7 @@ Iara is an automated, project-agnostic, configurable code review tool designed t
 
 ---
 
-[![🧜‍♀️ Iara Code Review](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml) [![🧪 Tests](https://github.com/felipefernandes/iara/actions/workflows/tests.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/tests.yml) [![codecov](https://codecov.io/gh/felipefernandes/iara/branch/main/graph/badge.svg)](https://codecov.io/gh/felipefernandes/iara) [![PyPI - Version](https://img.shields.io/pypi/v/iara-reviewer)](https://pypi.org/project/iara-reviewer/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![🧜‍♀️ Iara Code Review](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/iara-review.yml) [![🧪 Tests](https://github.com/felipefernandes/iara/actions/workflows/tests.yml/badge.svg)](https://github.com/felipefernandes/iara/actions/workflows/tests.yml) [![codecov](https://codecov.io/gh/felipefernandes/iara/branch/main/graph/badge.svg)](https://codecov.io/gh/felipefernandes/iara) [![PyPI - Version](https://img.shields.io/pypi/v/iara-reviewer)](https://pypi.org/project/iara-reviewer/) [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Iara%20Code%20Reviewer-blue?logo=github)](https://github.com/marketplace/actions/iara-code-reviewer) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
@@ -250,6 +250,8 @@ git diff | iara
 
 ## 🐙 GitHub Integration
 
+Iara is available on the [**GitHub Marketplace**](https://github.com/marketplace/actions/iara-code-reviewer) — you can add it to your repository with just a few clicks. No Docker required! Iara runs as a lightweight **Composite Action** directly on the runner, with automatic pip caching for fast execution.
+
 Add Iara to your GitHub repository in **2 steps**:
 
 ### 1. Configure the secret
@@ -354,6 +356,7 @@ Iara will automatically:
     config_path: ".iara.json"                     # config path (default: .iara.json)
     post_comment: "true"                           # post comment on PR (default: true)
     language: "en"                                 # review language
+    index_codebase: "true"                         # enable RAG memory (default: false)
 ```
 
 ---
