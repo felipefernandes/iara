@@ -49,5 +49,31 @@ outputs:
     description: 'The code review output from Iara'
 
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Iara
+      shell: bash
+      run: pip install --no-cache-dir -e "${{ github.action_path }}[rag]"
+
+    - name: Run Iara Review
+      shell: bash
+      run: |
+        chmod +x "${{ github.action_path }}/scripts/run_iara.sh"
+        "${{ github.action_path }}/scripts/run_iara.sh"
+      env:
+        INPUT_OPENROUTER_API_KEY: ${{ inputs.openrouter_api_key }}
+        INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        INPUT_GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
+        INPUT_ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        INPUT_PROVIDER: ${{ inputs.provider }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_CONFIG_PATH: ${{ inputs.config_path }}
+        INPUT_POST_COMMENT: ${{ inputs.post_comment }}
+        INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_INDEX_CODEBASE: ${{ inputs.index_codebase }}

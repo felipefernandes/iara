@@ -5,6 +5,9 @@
 #   1. Adicione OPENROUTER_API_KEY como secret do repositorio
 #      (Settings > Secrets and variables > Actions > New repository secret)
 #   2. GITHUB_TOKEN eh fornecido automaticamente pelo GitHub Actions
+#
+# A Iara usa uma Composite Action (sem Docker!) para execucao rapida
+# com cache automatico de pip. Nenhuma configuracao extra eh necessaria.
 
 name: Iara Code Review
 
@@ -31,5 +34,6 @@ jobs:
           # model: 'google/gemini-2.0-flash-exp:free'  # Opcional: forcar modelo
           # config_path: '.iara.json'                    # Opcional: caminho do config
           # post_comment: 'true'                         # Opcional: postar comentario no PR
+          # index_codebase: 'true'                       # Opcional: habilitar RAG memory
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
