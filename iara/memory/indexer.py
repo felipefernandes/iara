@@ -149,6 +149,9 @@ class CodeVisitor(ast.NodeVisitor):
             calls.append(call_node.func.attr)
 
 
+import hashlib
+import json
+
 class Indexer:
     """Walks directory and indexes files."""
     
@@ -164,12 +167,32 @@ class Indexer:
             ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".psd", ".pdf",
             ".zip", ".tar", ".gz", ".7z", ".rar", ".db", ".sqlite", ".lancedb"
         ])
+        self.hashes_file = ".iara/file_hashes.json"
 
-    def index_project(self, root_path: str):
+    def _load_hashes(self):
+        if os.path.exists(self.hashes_file):
+            try:
+                with open(self.hashes_file, "r") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError, OSError) as e:
+                logger.warning("Failed to load file hashes: %s", e)
+                return {}
+        return {}
+
+    def _save_hashes(self, hashes):
+        os.makedirs(os.path.dirname(self.hashes_file), exist_ok=True)
+        with open(self.hashes_file, "w") as f:
+            json.dump(hashes, f)
+
+    def _compute_hash(self, content):
+        return hashlib.md5(content.encode("utf-8")).hexdigest()
+
+    def index_project(self, root_path: str, force: bool = False):
         """Index all files in a project directory.
         
         Args:
             root_path: Absolute path to the project root directory.
+            force: If True, re-index all files regardless of changes.
             
         Raises:
             FileNotFoundError: If root_path does not exist.
@@ -180,14 +203,17 @@ class Indexer:
         if not os.path.isdir(root_path):
             raise NotADirectoryError(f"Path is not a directory: {root_path}")
 
+        existing_hashes = self._load_hashes() if not force else {}
+        new_hashes = {}
+        
         all_chunks = []
         file_count = 0
+        skipped_count = 0
         
         print(f"🧠 Scanning {root_path}...", file=sys.stderr)
         
         for root, dirs, files in os.walk(root_path):
             # Defensive check: if we somehow entered an ignored directory
-            # (e.g. valid for some os.walk implementations or mocks)
             if any(ign in root.split(os.sep) for ign in self.ignore_patterns):
                 continue
 
@@ -210,6 +236,13 @@ class Indexer:
                     with open(file_path, "r", encoding="utf-8", errors="strict") as f:
                         content = f.read()
                     
+                    current_hash = self._compute_hash(content)
+                    new_hashes[rel_path] = current_hash
+                    
+                    if not force and rel_path in existing_hashes and existing_hashes[rel_path] == current_hash:
+                        skipped_count += 1
+                        continue
+
                     # Progress Indicator (every 10 files)
                     file_count += 1
                     if file_count % 10 == 0:
@@ -233,4 +266,6 @@ class Indexer:
         if all_chunks:
             self.memory.index_chunks(all_chunks)
             
-        print(f"✅ Indexed {file_count} files.", file=sys.stderr)
+        self._save_hashes(new_hashes)
+        
+        print(f"✅ Indexed {file_count} files (Skipped {skipped_count} unchanged).", file=sys.stderr)

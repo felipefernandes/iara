@@ -47,7 +47,7 @@ def main():
     memory_parser = subparsers.add_parser("memory", help="Memory management (RAG)")
     memory_sub = memory_parser.add_subparsers(dest="memory_command")
     memory_sub.required = False
-    memory_sub.add_parser("index", help="Index the current directory")
+    memory_sub.add_parser("index", help="Index the current directory").add_argument("--force", action="store_true", help="Force re-indexing of all files")
     memory_sub.add_parser("clear", help="Clear the memory index")
 
     args = parser.parse_args()
@@ -85,7 +85,7 @@ def main():
         if args.memory_command == "index":
             indexer = Indexer(memory)
             print(f"🧠 Indexing codebase in {os.getcwd()}...", file=sys.stderr)
-            indexer.index_project(os.getcwd())
+            indexer.index_project(os.getcwd(), force=getattr(args, 'force', False))
             print("✅ Indexing complete.", file=sys.stderr)
         elif args.memory_command == "clear":
             memory.clear()

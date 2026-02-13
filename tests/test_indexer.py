@@ -273,14 +273,19 @@ class TestIndexer(unittest.TestCase):
         mock_memory = MagicMock()
         indexer = Indexer(mock_memory)
         
-        m_open = MagicMock()
-        m_open.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "invalid byte")
+        real_open = open
+        def smart_open(file, *args, **kwargs):
+            # Allow hash file operations to succeed normally
+            if 'file_hashes' in str(file):
+                return real_open(os.devnull, *args, **kwargs)
+            raise UnicodeDecodeError("utf-8", b"", 0, 1, "invalid byte")
         
         with patch('os.walk') as mock_walk, \
-             patch('builtins.open', m_open), \
+             patch('builtins.open', side_effect=smart_open), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
-             patch('sys.stderr'):
+             patch('os.makedirs'), \
+             self.assertLogs('iara.memory.indexer', level='DEBUG') as cm:
             
             mock_walk.return_value = [
                 ('root', [], ['binary.dat'])
@@ -288,6 +293,10 @@ class TestIndexer(unittest.TestCase):
             
             # Should not raise
             indexer.index_project('root')
+            
+            # Verify log message
+            self.assertTrue(any("Skipping binary/non-UTF-8" in output for output in cm.output))
+            
             # No chunks should be indexed
             mock_memory.index_chunks.assert_not_called()
 
@@ -296,14 +305,19 @@ class TestIndexer(unittest.TestCase):
         mock_memory = MagicMock()
         indexer = Indexer(mock_memory)
         
-        m_open = MagicMock()
-        m_open.side_effect = RuntimeError("Something unexpected")
+        real_open = open
+        def smart_open(file, *args, **kwargs):
+            # Allow hash file operations to succeed normally
+            if 'file_hashes' in str(file):
+                return real_open(os.devnull, *args, **kwargs)
+            raise RuntimeError("Something unexpected")
         
         with patch('os.walk') as mock_walk, \
-             patch('builtins.open', m_open), \
+             patch('builtins.open', side_effect=smart_open), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
-             patch('sys.stderr'):
+             patch('os.makedirs'), \
+             self.assertLogs('iara.memory.indexer', level='WARNING') as cm:
             
             mock_walk.return_value = [
                 ('root', [], ['problem.py'])
@@ -311,6 +325,10 @@ class TestIndexer(unittest.TestCase):
             
             # Should not raise
             indexer.index_project('root')
+            
+            # Verify log message
+            self.assertTrue(any("Unexpected error processing" in output for output in cm.output))
+            
             mock_memory.index_chunks.assert_not_called()
 
     def test_index_project_progress_indicator(self):

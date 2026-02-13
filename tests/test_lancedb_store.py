@@ -32,6 +32,11 @@ class TestLanceDBMemory(unittest.TestCase):
     def test_initialization(self):
         from iara.memory.lancedb_store import LanceDBMemory
         memory = LanceDBMemory()
+        # Should NOT be called on init
+        self.mock_lancedb.connect.assert_not_called()
+        
+        # Should be called after access
+        memory._ensure_initialized()
         self.mock_lancedb.connect.assert_called_once()
 
     def test_index_chunks(self):
@@ -39,6 +44,7 @@ class TestLanceDBMemory(unittest.TestCase):
         from iara.memory.interface import CodeChunk
 
         memory = LanceDBMemory()
+        memory._ensure_initialized() # Initialize DB
         
         # Mock create_table
         memory.db.create_table.return_value = MagicMock()
@@ -56,6 +62,8 @@ class TestLanceDBMemory(unittest.TestCase):
         from iara.memory.lancedb_store import LanceDBMemory
         
         memory = LanceDBMemory()
+        memory._ensure_initialized()
+        
         memory.db.table_names.return_value = ["code_chunks"]
         
         mock_table = MagicMock()
@@ -81,7 +89,11 @@ class TestLanceDBMemory(unittest.TestCase):
             "start_line": 10,
             "end_line": 12,
             "type": "function",
-        }] # Simulating to_list output directly which usually returns list of dicts
+            "content": "def found(): pass", 
+            "start_line": 10, # Add missing fields to match CodeChunk expected structure if mocked fully or partially
+            "end_line": 12,
+            "type": "function"
+        }] 
 
         results = memory.retrieve("query")
         # Ensure we handled the result correctly
@@ -92,14 +104,10 @@ class TestLanceDBMemory(unittest.TestCase):
         # Using a fresh import context to simulate missing module
         with patch.dict('sys.modules', {'lancedb': None}):
              from iara.memory.lancedb_store import LanceDBMemory
-             # Re-importing inside the context might be tricky if already imported.
-             # Ideally we'd test this by trying to instantiate or checking the RAG_AVAILABLE flag logic in main code,
-             # but here we are testing the class logic itself if it has checks.
-             # Actually, LanceDBMemory imports lancedb at module level usually, or inside __init__.
-             # Our implementation imports at module level but inside try/except block in CLI.
-             # If the class itself has no checks, this test might be redundant for the Class, but valuable for the CLI.
-             # However, the previous test_coverage_improvements had this.
-             pass
+             memory = LanceDBMemory()
+             # Should fail on initialization access, not on creation
+             with self.assertRaises(ImportError):
+                 memory._ensure_initialized()
 
     def test_create_new_table(self):
         """Test logic for creating a new table when one doesn't exist."""
@@ -107,6 +115,8 @@ class TestLanceDBMemory(unittest.TestCase):
         from iara.memory.interface import CodeChunk
 
         memory = LanceDBMemory()
+        memory._ensure_initialized()
+        
         memory.db = MagicMock()
         memory.db.table_names.return_value = [] # No tables
         memory._embed = MagicMock(return_value=[[0.1, 0.2]])
@@ -122,6 +132,8 @@ class TestLanceDBMemory(unittest.TestCase):
         from iara.memory.interface import CodeChunk
 
         memory = LanceDBMemory()
+        memory._ensure_initialized()
+        
         memory.db = MagicMock()
         memory.db.table_names.return_value = ["code_chunks"] 
         memory.db.open_table.return_value = MagicMock()
