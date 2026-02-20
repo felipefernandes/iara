@@ -155,8 +155,11 @@ import json
 class Indexer:
     """Walks directory and indexes files."""
     
-    def __init__(self, memory_interface):
+    def __init__(self, memory_interface, config=None):
+        from iara.config import load_config
         self.memory = memory_interface
+        self.config = config or load_config()
+        self.max_index_file_size = self.config.get("review", {}).get("max_index_file_size", 1048576)
         self.chunker = CodeChunker()
         self.ignore_patterns = set([
             ".git", "__pycache__", "venv", ".venv", "node_modules", 
@@ -232,6 +235,12 @@ class Indexer:
                 rel_path = os.path.relpath(file_path, root_path)
                 
                 try:
+                    file_size = os.path.getsize(file_path)
+                    if file_size > self.max_index_file_size:
+                        logger.debug("Skipping large file: %s (%d bytes > %d limit)", rel_path, file_size, self.max_index_file_size)
+                        skipped_count += 1
+                        continue
+
                     # simplistic binary check
                     with open(file_path, "r", encoding="utf-8", errors="strict") as f:
                         content = f.read()

@@ -13,7 +13,8 @@ DEFAULT_CONFIG = {
     },
     "review": {
         "focus_areas": ["Logic", "Security", "Performance"],
-        "ignore_patterns": []
+        "ignore_patterns": [],
+        "max_index_file_size": 1048576
     },
     "model": {
         "preferred": None,

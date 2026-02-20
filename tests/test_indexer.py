@@ -157,6 +157,7 @@ class TestIndexer(unittest.TestCase):
         
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', mock_open(read_data="print('hello')")) as mock_file, \
+             patch('os.path.getsize', return_value=5), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True):
             
@@ -206,6 +207,7 @@ class TestIndexer(unittest.TestCase):
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', m_open), \
              patch('sys.stderr'), \
+             patch('os.path.getsize', return_value=5), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True):
             
@@ -252,6 +254,7 @@ class TestIndexer(unittest.TestCase):
         
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', mock_open(read_data="content")) as mock_file, \
+             patch('os.path.getsize', return_value=5), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
              patch('sys.stderr'):
@@ -282,6 +285,7 @@ class TestIndexer(unittest.TestCase):
         
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', side_effect=smart_open), \
+             patch('os.path.getsize', return_value=5), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
              patch('os.makedirs'), \
@@ -314,6 +318,7 @@ class TestIndexer(unittest.TestCase):
         
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', side_effect=smart_open), \
+             patch('os.path.getsize', return_value=5), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
              patch('os.makedirs'), \
@@ -369,6 +374,7 @@ class TestIndexer(unittest.TestCase):
         
         with patch('os.walk') as mock_walk, \
              patch('builtins.open', mock_open(read_data="code")), \
+             patch('os.path.getsize', return_value=5), \
              patch('os.path.exists', return_value=True), \
              patch('os.path.isdir', return_value=True), \
              patch('sys.stderr'):
@@ -382,6 +388,44 @@ class TestIndexer(unittest.TestCase):
             
             # Should have been called at least twice (batch at 100 + final flush)
             self.assertGreaterEqual(mock_memory.index_chunks.call_count, 2)
+
+
+    def test_index_project_skips_large_files(self):
+        """Test that files exceeding max_index_file_size are skipped."""
+        mock_memory = MagicMock()
+        # Set max file size to 10 bytes
+        config = {"review": {"max_index_file_size": 10}}
+        indexer = Indexer(mock_memory, config=config)
+        
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', mock_open(read_data="content")) as mock_file, \
+             patch('os.path.getsize') as mock_getsize, \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True), \
+             patch('sys.stderr'), \
+             self.assertLogs('iara.memory.indexer', level='DEBUG') as cm:
+            
+            mock_walk.return_value = [
+                ('root', [], ['small.py', 'large.py'])
+            ]
+            
+            def getsize_side_effect(path):
+                if 'large.py' in path:
+                    return 20 # > 10
+                return 5 # <= 10
+            mock_getsize.side_effect = getsize_side_effect
+            
+            indexer.index_project('root')
+            
+            # small.py should be opened, large.py should be skipped
+            opened_files = [c[1][0] for c in mock_file.mock_calls if c[0] == '' and c[1]]
+            opened_files = [os.path.normpath(p) for p in opened_files]
+            
+            self.assertTrue(any('small.py' in p for p in opened_files))
+            self.assertFalse(any('large.py' in p for p in opened_files))
+            
+            # verify logging
+            self.assertTrue(any("Skipping large file" in log for log in cm.output))
 
 
 class TestCodeChunkRepr(unittest.TestCase):
