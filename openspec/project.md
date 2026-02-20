@@ -1,8 +1,8 @@
 # Project Context
 
 ## Purpose
-Iara is an automated AI code reviewer originally designed for the "Curupira" open-source project. Its goal is to provide intelligent, context-aware code reviews focusing on Logic, Security, and Performance. 
-It follows the "Diet Code" manifesto (efficiency, simplicity) and is designed to run on constrained hardware (Raspberry Pi).
+Iara is an automated AI code reviewer. Its goal is to provide intelligent, context-aware code reviews focusing on Logic, Security, and Performance. 
+It follows the "Diet Code" manifesto (efficiency, simplicity) without loosening the quality of reviews.
 The project is evolving to be project-agnostic, supporting multiple LLM providers (Free & Paid) and integrating into CI/CD pipelines (GitLab/GitHub).
 
 ## Tech Stack
