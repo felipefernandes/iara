@@ -1,7 +1,8 @@
-# Memory Efficiency
+# memory-efficiency Specification
 
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change optimize-indexer-memory. Update Purpose after archive.
+## Requirements
 ### Requirement: Configurable Max File Size for Indexing
 The system extracts AST and line blocks as chunks when indexing repository files, but MUST skip parsing very large files completely based on a configurable threshold.
 
@@ -16,3 +17,4 @@ Given a repository containing a 5MB file.
 And the user sets `review.max_index_file_size` to `10000000` (10MB) in `.iara.json`.
 When the index runs on the project root path.
 Then the system successfully reads the 5MB file into memory and indexes its chunks.
+
