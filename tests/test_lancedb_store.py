@@ -145,4 +145,84 @@ class TestLanceDBMemory(unittest.TestCase):
         memory.db.create_table.assert_not_called()
         memory.db.open_table.assert_called_with("code_chunks")
 
+    def test_delete_by_file_paths_empty_list(self):
+        """Deleting empty list should be a no-op."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+
+        # Should not raise, no DB calls made
+        memory.delete_by_file_paths([])
+
+    def test_delete_by_file_paths_predicate_format(self):
+        """Should construct correct SQL predicate."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        mock_table = MagicMock()
+        memory.db.open_table.return_value = mock_table
+        mock_table.delete.return_value = 5
+
+        memory.delete_by_file_paths(["path1.py", "path2.py"])
+
+        mock_table.delete.assert_called_once()
+        predicate = mock_table.delete.call_args[0][0]
+        self.assertIn("file_path IN", predicate)
+        self.assertIn("'path1.py'", predicate)
+        self.assertIn("'path2.py'", predicate)
+
+    def test_delete_by_file_paths_escapes_quotes(self):
+        """Should escape single quotes in file paths."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        mock_table = MagicMock()
+        memory.db.open_table.return_value = mock_table
+        mock_table.delete.return_value = 1
+
+        memory.delete_by_file_paths(["path'with'quotes.py"])
+
+        predicate = mock_table.delete.call_args[0][0]
+        self.assertIn("path''with''quotes.py", predicate)
+
+    def test_delete_by_file_paths_nonexistent_table(self):
+        """Should handle gracefully when table doesn't exist."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = []  # No tables exist
+
+        # Should not raise, just return early
+        memory.delete_by_file_paths(["file.py"])
+
+        # Should not attempt to open or delete from table
+        memory.db.open_table.assert_not_called()
+
+    def test_delete_by_file_paths_exception_handling(self):
+        """Should log warning but not raise when deletion fails."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        mock_table = MagicMock()
+        mock_table.delete.side_effect = Exception("DB error")
+        memory.db.open_table.return_value = mock_table
+
+        with patch('iara.memory.lancedb_store.logger') as mock_logger:
+            # Should not raise exception
+            memory.delete_by_file_paths(["file.py"])
+
+        mock_logger.warning.assert_called()
+
 

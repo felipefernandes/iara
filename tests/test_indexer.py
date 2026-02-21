@@ -406,3 +406,114 @@ class TestCodeChunkRepr(unittest.TestCase):
         result = repr(chunk)
         self.assertIn("text", result)
         self.assertIn("notes.txt", result)
+
+
+class TestIndexerDeletion(unittest.TestCase):
+    """Tests for deleted file detection and cleanup functionality."""
+
+    def test_detect_deleted_files_empty_existing(self):
+        """First run with no existing hashes should detect no deletions."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+
+        deleted = indexer._detect_deleted_files({}, {"file1.py": "hash1"})
+
+        self.assertEqual(deleted, [])
+
+    def test_detect_deleted_files_some_deleted(self):
+        """Should detect files in existing but not in new."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+
+        existing = {"file1.py": "hash1", "file2.py": "hash2", "file3.py": "hash3"}
+        new = {"file1.py": "hash1", "file3.py": "hash3"}
+
+        deleted = indexer._detect_deleted_files(existing, new)
+
+        self.assertEqual(deleted, ["file2.py"])
+
+    def test_detect_deleted_files_all_deleted(self):
+        """Should detect when all files are deleted."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+
+        existing = {"file1.py": "hash1", "file2.py": "hash2"}
+        new = {}
+
+        deleted = indexer._detect_deleted_files(existing, new)
+
+        self.assertCountEqual(deleted, ["file1.py", "file2.py"])
+
+    def test_cleanup_deleted_files_calls_memory(self):
+        """Should call memory.delete_by_file_paths with correct arguments."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+        deleted = ["file1.py", "file2.py"]
+
+        with patch('iara.memory.indexer.logger') as mock_logger:
+            indexer._cleanup_deleted_files(deleted)
+
+        mock_memory.delete_by_file_paths.assert_called_once_with(deleted)
+        mock_logger.info.assert_called()
+
+    def test_cleanup_deleted_files_handles_exception(self):
+        """Should log warning but not raise when deletion fails."""
+        mock_memory = MagicMock()
+        mock_memory.delete_by_file_paths.side_effect = Exception("DB error")
+        indexer = Indexer(mock_memory)
+
+        with patch('iara.memory.indexer.logger') as mock_logger:
+            # Should not raise exception
+            indexer._cleanup_deleted_files(["file1.py"])
+
+        mock_logger.warning.assert_called()
+
+    def test_cleanup_deleted_files_empty_list(self):
+        """Should be a no-op when list is empty."""
+        mock_memory = MagicMock()
+        indexer = Indexer(mock_memory)
+
+        indexer._cleanup_deleted_files([])
+
+        # Should not call delete_by_file_paths
+        mock_memory.delete_by_file_paths.assert_not_called()
+
+    def test_index_project_cleanup_deleted_files_integration(self):
+        """Integration test: deleted files should be cleaned up from index."""
+        import tempfile
+        import shutil
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create initial files
+            file1 = os.path.join(temp_dir, "keep.py")
+            file2 = os.path.join(temp_dir, "delete.py")
+
+            with open(file1, "w") as f:
+                f.write("def keep(): pass")
+            with open(file2, "w") as f:
+                f.write("def delete(): pass")
+
+            # First indexing
+            mock_memory = MagicMock()
+            indexer = Indexer(mock_memory)
+            indexer.index_project(temp_dir)
+
+            # Verify both files were indexed
+            all_chunks = []
+            for call in mock_memory.index_chunks.call_args_list:
+                all_chunks.extend(call.args[0])
+            self.assertTrue(any("keep.py" in c.file_path for c in all_chunks))
+            self.assertTrue(any("delete.py" in c.file_path for c in all_chunks))
+
+            # Delete one file
+            os.remove(file2)
+
+            # Re-index
+            mock_memory.reset_mock()
+            indexer2 = Indexer(mock_memory)
+            indexer2.index_project(temp_dir)
+
+            # Verify delete_by_file_paths was called with deleted file
+            mock_memory.delete_by_file_paths.assert_called_once()
+            deleted_paths = mock_memory.delete_by_file_paths.call_args[0][0]
+            self.assertTrue(any("delete.py" in path for path in deleted_paths))
