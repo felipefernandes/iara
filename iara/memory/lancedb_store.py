@@ -102,3 +102,30 @@ class LanceDBMemory(MemoryInterface):
         if self.table_name in self.db.table_names():
             self.db.drop_table(self.table_name)
             logger.info("Cleared LanceDB memory.")
+
+    def delete_by_file_paths(self, file_paths: List[str]):
+        """Delete all chunks for the specified file paths using LanceDB's delete predicate.
+
+        Args:
+            file_paths: List of relative file paths to remove from the index.
+        """
+        if not file_paths:
+            return
+
+        self._ensure_initialized()
+        if self.table_name not in self.db.table_names():
+            return  # Nothing to delete
+
+        table = self.db.open_table(self.table_name)
+
+        # Build SQL-like predicate: file_path IN ('path1', 'path2', ...)
+        # Escape single quotes for SQL safety
+        escaped_paths = [path.replace("'", "''") for path in file_paths]
+        path_list = ", ".join(f"'{p}'" for p in escaped_paths)
+        predicate = f"file_path IN ({path_list})"
+
+        try:
+            deleted_count = table.delete(predicate)
+            logger.info(f"Deleted {deleted_count} chunks from {len(file_paths)} files.")
+        except Exception as e:
+            logger.warning(f"Failed to delete chunks for {len(file_paths)} files: {e}")

@@ -34,3 +34,12 @@ class MemoryInterface(ABC):
     def clear(self):
         """Clear all data from the memory."""
         pass
+
+    @abstractmethod
+    def delete_by_file_paths(self, file_paths: List[str]):
+        """Delete all chunks associated with the given file paths.
+
+        Args:
+            file_paths: List of relative file paths to remove from the index.
+        """
+        pass

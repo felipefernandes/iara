@@ -190,6 +190,47 @@ class Indexer:
     def _compute_hash(self, content):
         return hashlib.md5(content.encode("utf-8")).hexdigest()
 
+    def _detect_deleted_files(self, existing_hashes: dict, new_hashes: dict) -> List[str]:
+        """Detect files that were deleted since last indexing.
+
+        Args:
+            existing_hashes: Hash map from previous indexing run.
+            new_hashes: Hash map from current indexing run.
+
+        Returns:
+            List of relative file paths that exist in existing_hashes but not in new_hashes.
+        """
+        if not existing_hashes:
+            return []  # First run, nothing to delete
+
+        deleted = []
+        for file_path in existing_hashes.keys():
+            if file_path not in new_hashes:
+                deleted.append(file_path)
+
+        return deleted
+
+    def _cleanup_deleted_files(self, deleted_files: List[str]):
+        """Remove chunks for deleted files from the memory store.
+
+        Args:
+            deleted_files: List of relative file paths to clean up.
+        """
+        if not deleted_files:
+            return
+
+        logger.info(f"Detected {len(deleted_files)} deleted files, cleaning up...")
+
+        try:
+            self.memory.delete_by_file_paths(deleted_files)
+            # Log first 5 files to avoid spam
+            sample = ', '.join(deleted_files[:5])
+            if len(deleted_files) > 5:
+                sample += f" and {len(deleted_files) - 5} more..."
+            logger.debug(f"Deleted files: {sample}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup deleted files: {e}")
+
     def index_project(self, root_path: str, force: bool = False):
         """Index all files in a project directory.
         
@@ -274,7 +315,13 @@ class Indexer:
                     
         if all_chunks:
             self.memory.index_chunks(all_chunks)
-            
+
+        # Detect and clean up deleted files
+        deleted_files = self._detect_deleted_files(existing_hashes, new_hashes)
+        if deleted_files:
+            self._cleanup_deleted_files(deleted_files)
+
         self._save_hashes(new_hashes)
-        
-        print(f"✅ Indexed {file_count} files (Skipped {skipped_count} unchanged).", file=sys.stderr)
+
+        deleted_count = len(deleted_files) if deleted_files else 0
+        print(f"✅ Indexed {file_count} files (Skipped {skipped_count} unchanged, Cleaned up {deleted_count} deleted).", file=sys.stderr)
