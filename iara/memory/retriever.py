@@ -1,12 +1,39 @@
 import re
+import logging
+import math
 from typing import List, Set
 from iara.memory.interface import MemoryInterface, CodeChunk
+from iara.config import load_config
+
+logger = logging.getLogger(__name__)
+
+def _cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    if not vec1 or not vec2 or len(vec1) != len(vec2):
+        return 0.0
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    mag1 = math.sqrt(sum(a * a for a in vec1))
+    mag2 = math.sqrt(sum(b * b for b in vec2))
+    if mag1 == 0 or mag2 == 0:
+        return 0.0
+    return dot_product / (mag1 * mag2)
 
 class Retriever:
     """Retrieves relevant context from memory based on code changes."""
 
     def __init__(self, memory: MemoryInterface):
         self.memory = memory
+
+    def _get_dedup_threshold(self) -> float:
+        """
+        Safely attempts to load the configuration to find the deduplication threshold.
+        If it fails (e.g., config is missing or malformed), it falls back to 0.92.
+        """
+        try:
+            config = load_config()
+            return config.get("memory", {}).get("dedup_threshold", 0.92)
+        except Exception as e:
+            logger.warning(f"Failed to load config for dedup threshold, using default (0.92): {e}")
+            return 0.92
 
     def retrieve_context_for_diff(self, diff: str, max_chunks: int = 5) -> str:
         """
@@ -21,9 +48,15 @@ class Retriever:
         # TODO: Improve this query strategy. Maybe query per symbol?
         query = " ".join(list(symbols)[:10])  # Limit query length
         
-        chunks = self.memory.retrieve(query, n_results=max_chunks)
+        dedup_threshold = self._get_dedup_threshold()
+        
+        fetch_chunks = max_chunks * 2
+        chunks = self.memory.retrieve(query, n_results=fetch_chunks)
         if not chunks:
             return ""
+            
+        chunks = self._deduplicate_chunks(chunks, similarity_threshold=dedup_threshold)
+        chunks = chunks[:max_chunks]
             
         return self._format_chunks(chunks)
 
@@ -61,6 +94,48 @@ class Retriever:
                        symbols.add(token)
 
         return symbols
+
+    def _deduplicate_chunks(self, chunks: List[CodeChunk], similarity_threshold: float = 0.92) -> List[CodeChunk]:
+        """
+        Removes semantically redundant chunks using cosine similarity.
+        Safely skips if no encoder is available.
+        """
+        if len(chunks) <= 1:
+            return chunks
+
+        # Try to access encoder, handling cases where it's not present or none
+        encoder = getattr(self.memory, "encoder", None)
+        if encoder is None:
+            return chunks
+
+        try:
+            contents = [c.content for c in chunks]
+            embeddings = encoder.encode(contents)
+            if hasattr(embeddings, 'tolist'):
+                embeddings = embeddings.tolist()
+        except Exception as e:
+            logger.warning(f"Semantic dedup failed during encoding: {e}")
+            return chunks
+
+        kept = []
+        kept_indices = []
+        
+        for i, chunk in enumerate(chunks):
+            is_redundant = False
+            for j in range(len(kept)):
+                cos_sim = _cosine_similarity(embeddings[i], embeddings[kept_indices[j]])
+                if cos_sim > similarity_threshold:
+                    is_redundant = True
+                    break
+            if not is_redundant:
+                kept.append(chunk)
+                kept_indices.append(i)
+                
+        if len(kept) < len(chunks):
+            logger.info(f"🔍 RAG: {len(chunks)} chunks -> {len(kept)} after dedup ({len(chunks) - len(kept)} redundant removed)")
+            
+        return kept
+
 
     def _format_chunks(self, chunks: List[CodeChunk]) -> str:
         """Formats code chunks into a context string."""

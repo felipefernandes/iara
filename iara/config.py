@@ -21,6 +21,9 @@ DEFAULT_CONFIG = {
         "fallback_enabled": True,
         "provider": "openrouter"
     },
+    "memory": {
+        "dedup_threshold": 0.92
+    },
     "language": "en"
 }
 
