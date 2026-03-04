@@ -151,6 +151,9 @@ class CodeVisitor(ast.NodeVisitor):
 
 import hashlib
 import json
+import fnmatch
+import re
+from pathlib import Path
 
 class Indexer:
     """Walks directory and indexes files."""
@@ -172,6 +175,14 @@ class Indexer:
             ".zip", ".tar", ".gz", ".7z", ".rar", ".db", ".sqlite", ".lancedb"
         ])
         self.hashes_file = ".iara/file_hashes.json"
+        self._ignore_regex = None
+
+    def _is_ignored(self, name: str) -> bool:
+        if self._ignore_regex is None:
+            regexes = [fnmatch.translate(p) for p in self.ignore_patterns]
+            self._ignore_regex = re.compile('|'.join(regexes)) if regexes else None
+            
+        return bool(self._ignore_regex and self._ignore_regex.match(name))
 
     def _load_hashes(self):
         if os.path.exists(self.hashes_file):
@@ -258,23 +269,20 @@ class Indexer:
         print(f"🧠 Scanning {root_path}...", file=sys.stderr)
         
         for root, dirs, files in os.walk(root_path):
-            import fnmatch
             # Defensive check: if we somehow entered an ignored directory
-            # Note: During some tests with mock_walk, os.sep might not be in the mock path.
-            # Handle both scenarios gracefully
-            path_parts = root.replace('/', os.sep).split(os.sep)
-            if any(any(fnmatch.fnmatch(p, ign) for ign in self.ignore_patterns) for p in path_parts):
+            # Handle both scenarios gracefully using Path.parts
+            path_parts = Path(root).parts
+            if any(self._is_ignored(p) for p in path_parts):
                 continue
 
             # Filtering ignored directories
-            dirs[:] = [d for d in dirs if not any(fnmatch.fnmatch(d, ign) for ign in self.ignore_patterns)]
+            dirs[:] = [d for d in dirs if not self._is_ignored(d)]
             
-            import fnmatch
             for file in files:
                 if file.startswith("."):
                     continue
                 
-                if any(fnmatch.fnmatch(file, pattern) for pattern in self.ignore_patterns):
+                if self._is_ignored(file):
                     continue
                 
                 _, ext = os.path.splitext(file)

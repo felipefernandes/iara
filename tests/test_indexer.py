@@ -190,11 +190,12 @@ class TestIndexer(unittest.TestCase):
     def test_indexer_config_ignore_patterns(self):
         """Test that indexer correctly merges ignore_patterns from config."""
         mock_memory = MagicMock()
-        config = {"review": {"ignore_patterns": ["migrations", "fixtures"]}}
+        config = {"review": {"ignore_patterns": ["migrations", "fixtures", "*_generated.*"]}}
         indexer = Indexer(mock_memory, config=config)
         
         self.assertIn("migrations", indexer.ignore_patterns)
         self.assertIn("fixtures", indexer.ignore_patterns)
+        self.assertIn("*_generated.*", indexer.ignore_patterns)
         self.assertIn(".git", indexer.ignore_patterns) # Default should still be there 
 
         with patch('os.walk') as mock_walk, \
@@ -204,9 +205,9 @@ class TestIndexer(unittest.TestCase):
              patch('os.path.isdir', return_value=True):
             
             mock_walk.return_value = [
-                ('root', ['migrations', 'src'], ['valid.py']),
+                ('root', ['migrations', 'src'], ['valid.py', 'foo_generated.py']),
                 ('root/migrations', [], ['001_initial.py']),
-                ('root/src', [], ['main.py'])
+                ('root/src', [], ['main.py', 'api_generated.py'])
             ]
             
             indexer.index_project('root')
@@ -223,6 +224,8 @@ class TestIndexer(unittest.TestCase):
             self.assertTrue(any('valid.py' in p for p in opened_files))
             self.assertTrue(any('main.py' in p for p in opened_files))
             self.assertFalse(any('001_initial.py' in p for p in opened_files))
+            self.assertFalse(any('foo_generated.py' in p for p in opened_files))
+            self.assertFalse(any('api_generated.py' in p for p in opened_files))
 
     def test_indexer_handles_read_errors(self):
         """Test that indexer continues despite file read errors."""
