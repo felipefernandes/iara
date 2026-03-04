@@ -164,11 +164,21 @@ class Indexer:
         self.config = config or load_config()
         self.max_index_file_size = self.config.get("review", {}).get("max_index_file_size", 1048576)
         self.chunker = CodeChunker()
-        config_patterns = self.config.get("review", {}).get("ignore_patterns", [])
+        user_ignore_patterns = self.config.get("review", {}).get("ignore_patterns", [])
+        
+        valid_user_patterns = []
+        for p in user_ignore_patterns:
+            try:
+                # Test if the pattern can be compiled to regex
+                re.compile(fnmatch.translate(p))
+                valid_user_patterns.append(p)
+            except re.error:
+                logger.warning(f"Invalid ignore pattern '{p}' provided in config. Skipping.")
+                
         self.ignore_patterns = set([
             ".git", "__pycache__", "venv", ".venv", "node_modules", 
             ".idea", ".vscode", "dist", "build", ".iara", "__pypackages__"
-        ]).union(set(config_patterns))
+        ]).union(set(valid_user_patterns))
         self.ignore_extensions = set([
             ".pyc", ".pyo", ".pyd", ".so", ".dll", ".exe", ".bin", ".iso", 
             ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".psd", ".pdf",

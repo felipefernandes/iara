@@ -134,7 +134,8 @@ O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo m
   },
   "review": {
     "focus_areas": ["Performance", "Security"],
-    "ignore_patterns": ["fixtures", "migrations", "generated"]
+    "ignore_patterns": ["fixtures", "migrations", "generated"],
+    "max_index_file_size": 10485760
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
@@ -145,8 +146,16 @@ O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo m
 }
 ```
 
-### Propriedade `ignore_patterns`
-Você pode usar `ignore_patterns` para instruir o Indexador Iara a pular arquivos específicos ou pastas para não serem lidos e indexados dentro da memória context-aware RAG, como pastas fixtures ou bins com payloads gerados automaticamente que você normalmente não iria incluir em code reviews. O bot já preenche por padrão sua lista de ingore com defaults como `.git`, `node_modules`, `venv` entre outros então você não precisa declará-los novamente, a menos que as pastas do seu stack específico se igualem literalmente nos nomes.
+### `ignore_patterns` e `max_index_file_size`
+Você pode configurar o rastro do indexador Iara para respeitar limites de arquivos máximos ou pular artefatos específicos e pastas para não serem lidos dentro da memória context-aware RAG.
+
+**`max_index_file_size`:** Define um tamanho de restrição maxíma em bytes para considerar ler e indexar o arquivo (ex. `10485760` para um arquivo de 10MB substitui o padrão de 1MB).
+**`ignore_patterns`:** Pula pastas e arquivos especificos para não serem lidos (ex: pastas fixtures ou bins com payloads gerados automaticamente que você normalmente não iria incluir em code reviews).
+
+**Notas Importantes sobre o comportamento do `ignore_patterns`:**
+- 🛠️ **Mesclado com os Padrões:** Seus padrões informados nessa configuração são **adicionados** para a lista padrão da Iara (o bot já preenche ela com defaults como `.git`, `node_modules`, `venv`, `__pycache__` entre outros). Você não precisa declarar essas exclusões universais novamente.
+- ⚡ **Curingas (Wildcards) e Casamento por Prefixo:** A Iara usa a biblioteca nativa `fnmatch`, que significa que padrões inteiros explícitos como `test` casam especificamente contra um arquivo ou pasta englobada com nome de `test`. Para atuar como um prefixo ou buscar extensões, use curingas coringados do console (ex., `test*` casará tanto em `test_dir` como em `test_integration.py`, ou `*_generated.*` para englobar qualquer formato de sufixos na linguagem).
+- ⚠️ **Seja Específico e Estratégico:** Padrões muito amplos e curtos podem causar acidentes onde o bot varre completamente cego a indexação do seu RAG. O uso de `*` ou simplesmente `*.py` fará a Iara pular inteiramente arquivos importantíssimos de source e tests. É muito mais seguro e recomendado dar o escopo do folder com restrição (ex., `tests/fixtures/*` ou pastas inteiras como `migrations`).
 
 ### Provedores suportados e modelos de exemplo
 
