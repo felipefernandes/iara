@@ -161,10 +161,11 @@ class Indexer:
         self.config = config or load_config()
         self.max_index_file_size = self.config.get("review", {}).get("max_index_file_size", 1048576)
         self.chunker = CodeChunker()
+        config_patterns = self.config.get("review", {}).get("ignore_patterns", [])
         self.ignore_patterns = set([
             ".git", "__pycache__", "venv", ".venv", "node_modules", 
             ".idea", ".vscode", "dist", "build", ".iara", "__pypackages__"
-        ])
+        ]).union(set(config_patterns))
         self.ignore_extensions = set([
             ".pyc", ".pyo", ".pyd", ".so", ".dll", ".exe", ".bin", ".iso", 
             ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".psd", ".pdf",
@@ -257,15 +258,23 @@ class Indexer:
         print(f"🧠 Scanning {root_path}...", file=sys.stderr)
         
         for root, dirs, files in os.walk(root_path):
+            import fnmatch
             # Defensive check: if we somehow entered an ignored directory
-            if any(ign in root.split(os.sep) for ign in self.ignore_patterns):
+            # Note: During some tests with mock_walk, os.sep might not be in the mock path.
+            # Handle both scenarios gracefully
+            path_parts = root.replace('/', os.sep).split(os.sep)
+            if any(any(fnmatch.fnmatch(p, ign) for ign in self.ignore_patterns) for p in path_parts):
                 continue
 
             # Filtering ignored directories
-            dirs[:] = [d for d in dirs if d not in self.ignore_patterns]
+            dirs[:] = [d for d in dirs if not any(fnmatch.fnmatch(d, ign) for ign in self.ignore_patterns)]
             
+            import fnmatch
             for file in files:
                 if file.startswith("."):
+                    continue
+                
+                if any(fnmatch.fnmatch(file, pattern) for pattern in self.ignore_patterns):
                     continue
                 
                 _, ext = os.path.splitext(file)

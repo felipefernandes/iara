@@ -1,0 +1,3 @@
+1. - [x] **Atualizar `Indexer.__init__` para ler `ignore_patterns`**: Modificar a inicialização do `Indexer` em `iara/memory/indexer.py` para capturar a lista `review.ignore_patterns` da configuração do projeto (`.iara.json`) e fazer um `union` das regras padrão da Iara com as do projeto.
+2. - [x] **Adicionar testes no Indexer**: Inserir mocks/testes em `tests/test_indexer.py` para garantir que `Indexer.__init__` carrega corretamente e mescla os defaults com o array passado na propriedade `ignore_patterns`.
+3. - [x] **Atualizar o \`README.md\`**: Modificar o README (Seção de configurações via \`.iara.json\`) para explicar a propriedade \`ignore_patterns\` e prover um pequeno exemplo da configuração JSON.

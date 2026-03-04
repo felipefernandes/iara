@@ -134,7 +134,7 @@ O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo m
   },
   "review": {
     "focus_areas": ["Performance", "Security"],
-    "ignore_patterns": []
+    "ignore_patterns": ["fixtures", "migrations", "generated"]
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
@@ -144,6 +144,9 @@ O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo m
   "language": "pt-br"
 }
 ```
+
+### Propriedade `ignore_patterns`
+Você pode usar `ignore_patterns` para instruir o Indexador Iara a pular arquivos específicos ou pastas para não serem lidos e indexados dentro da memória context-aware RAG, como pastas fixtures ou bins com payloads gerados automaticamente que você normalmente não iria incluir em code reviews. O bot já preenche por padrão sua lista de ingore com defaults como `.git`, `node_modules`, `venv` entre outros então você não precisa declará-los novamente, a menos que as pastas do seu stack específico se igualem literalmente nos nomes.
 
 ### Provedores suportados e modelos de exemplo
 

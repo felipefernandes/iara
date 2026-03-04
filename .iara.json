@@ -15,7 +15,10 @@
       "Performance",
       "Testing"
     ],
-    "ignore_patterns": []
+    "ignore_patterns": [
+      ".assets",
+      "openspec"
+    ]
   },
   "model": {
     "preferred": null,

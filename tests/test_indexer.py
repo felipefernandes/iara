@@ -187,6 +187,43 @@ class TestIndexer(unittest.TestCase):
             self.assertTrue(any('utils.py' in p for p in opened_files))
             self.assertFalse(any('ignored.pyc' in p for p in opened_files))
 
+    def test_indexer_config_ignore_patterns(self):
+        """Test that indexer correctly merges ignore_patterns from config."""
+        mock_memory = MagicMock()
+        config = {"review": {"ignore_patterns": ["migrations", "fixtures"]}}
+        indexer = Indexer(mock_memory, config=config)
+        
+        self.assertIn("migrations", indexer.ignore_patterns)
+        self.assertIn("fixtures", indexer.ignore_patterns)
+        self.assertIn(".git", indexer.ignore_patterns) # Default should still be there 
+
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', mock_open(read_data="print('hello')")) as mock_file, \
+             patch('os.path.getsize', return_value=5), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True):
+            
+            mock_walk.return_value = [
+                ('root', ['migrations', 'src'], ['valid.py']),
+                ('root/migrations', [], ['001_initial.py']),
+                ('root/src', [], ['main.py'])
+            ]
+            
+            indexer.index_project('root')
+            
+            opened_files = []
+            for c in mock_file.mock_calls:
+                if c[0] == '':
+                    args = c[1]
+                    if args:
+                        opened_files.append(args[0])
+            
+            opened_files = [os.path.normpath(p) for p in opened_files]
+            
+            self.assertTrue(any('valid.py' in p for p in opened_files))
+            self.assertTrue(any('main.py' in p for p in opened_files))
+            self.assertFalse(any('001_initial.py' in p for p in opened_files))
+
     def test_indexer_handles_read_errors(self):
         """Test that indexer continues despite file read errors."""
         mock_memory = MagicMock()

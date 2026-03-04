@@ -134,7 +134,7 @@ pip install -e .
   },
   "review": {
     "focus_areas": ["Performance", "Security"],
-    "ignore_patterns": []
+    "ignore_patterns": ["fixtures", "migrations", "generated"]
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
@@ -144,6 +144,9 @@ pip install -e .
   "language": "en"
 }
 ```
+
+### `ignore_patterns` property
+You can use `ignore_patterns` to instruct the Iara Indexer to skip specific files or directories from being read and indexed into the RAG memory context, like fixture files or binary/generated data which aren't required to exist in memory for a review. Note that default ignore lists like `.git`, `node_modules`, `venv` and others are already added by default so you don't need to specify them unless your folder matches those exact strings.
 
 ### Supported providers and example models
 
