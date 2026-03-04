@@ -23,6 +23,18 @@ class Retriever:
     def __init__(self, memory: MemoryInterface):
         self.memory = memory
 
+    def _get_dedup_threshold(self) -> float:
+        """
+        Safely attempts to load the configuration to find the deduplication threshold.
+        If it fails (e.g., config is missing or malformed), it falls back to 0.92.
+        """
+        try:
+            config = load_config()
+            return config.get("memory", {}).get("dedup_threshold", 0.92)
+        except Exception as e:
+            logger.warning(f"Failed to load config for dedup threshold, using default (0.92): {e}")
+            return 0.92
+
     def retrieve_context_for_diff(self, diff: str, max_chunks: int = 5) -> str:
         """
         Analyzes the diff, extracts key symbols, and retrieves relevant context.
@@ -36,8 +48,7 @@ class Retriever:
         # TODO: Improve this query strategy. Maybe query per symbol?
         query = " ".join(list(symbols)[:10])  # Limit query length
         
-        config = load_config()
-        dedup_threshold = config.get("memory", {}).get("dedup_threshold", 0.92)
+        dedup_threshold = self._get_dedup_threshold()
         
         fetch_chunks = max_chunks * 2
         chunks = self.memory.retrieve(query, n_results=fetch_chunks)

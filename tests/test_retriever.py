@@ -101,3 +101,19 @@ index abc..def 100644
         
         sim4 = _cosine_similarity([], [1.0])
         self.assertEqual(sim4, 0.0)
+
+    @unittest.mock.patch('iara.memory.retriever.load_config')
+    def test_get_dedup_threshold_failure(self, mock_load_config):
+        mock_load_config.side_effect = Exception("Config error")
+        threshold = self.retriever._get_dedup_threshold()
+        self.assertEqual(threshold, 0.92)
+
+    def test_deduplicate_chunks_encoding_exception(self):
+        chunks = [CodeChunk(id=f"{i}", content=f"content {i}", file_path="f.py", start_line=1, end_line=1, type="function", metadata={}) for i in range(2)]
+        mock_encoder = MagicMock()
+        mock_encoder.encode.side_effect = Exception("Encoding error")
+        self.mock_memory.encoder = mock_encoder
+        
+        kept = self.retriever._deduplicate_chunks(chunks)
+        # Should return all chunks on failure
+        self.assertEqual(len(kept), 2)
