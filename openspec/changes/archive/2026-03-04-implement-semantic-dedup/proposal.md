@@ -1,6 +1,6 @@
 # Proposal: Implement Semantic Deduplication in Retriever
 
-## Motivation
+## Why
 At present, Iara retrieves up to 3 context chunks from LanceDB and injects them into the system prompt for context, without checking if they overlap significantly or are redundant. In codebases with dense interconnections, these chunks can be extremely similar, leading to bloated prompts and wasting tokens on duplicate information. Inspired by the `semantic_dedup` logic from Th0th, this proposal will eliminate redundant chunks through localized cosine similarity before injecting them into the system prompt.
 
 ## Proposed Change

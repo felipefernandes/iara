@@ -3,7 +3,7 @@
 ## Context
 The `Retriever` fetches code chunks from the RAG store to supply to the LLM system prompt. Since the model relies on chunks of context, fetching extremely similar code bits causes the prompt context to become saturated with redundant information.
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Eliminate redundant chunks from system prompt
 The retriever MUST apply a similarity-based deduplication filter to retrieved chunks, removing redundant context blocks over a given threshold.
