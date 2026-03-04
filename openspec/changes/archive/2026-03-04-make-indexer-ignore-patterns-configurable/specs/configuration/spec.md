@@ -1,8 +1,4 @@
-# configuration Specification
-
-## Purpose
-TBD - created by archiving change generalize-iara. Update Purpose after archive.
-## Requirements
+## MODIFIED Requirements
 ### Requirement: Project Configuration
 The system SHALL support loading configuration from a JSON file to customize the review context.
 
@@ -17,11 +13,3 @@ The system SHALL support loading configuration from a JSON file to customize the
 #### Scenario: Custom indexer ignore patterns
 - **WHEN** `review.ignore_patterns` is provided in the configuration file
 - **THEN** the system MUST merge these custom patterns with its default ignore list so that the directory tree scan ignores them.
-
-### Requirement: Tech Stack Customization
-The system SHALL adapt its review rules based on the configured technology stack.
-
-#### Scenario: Unity Stack
-- **WHEN** `tech_stack` includes "Unity"
-- **THEN** the system prompt MUST include C# and Unity-specific optimization rules (e.g., "Avoid `GetComponent` in Update").
-

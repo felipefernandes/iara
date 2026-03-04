@@ -134,7 +134,8 @@ pip install -e .
   },
   "review": {
     "focus_areas": ["Performance", "Security"],
-    "ignore_patterns": []
+    "ignore_patterns": ["fixtures", "migrations", "generated"],
+    "max_index_file_size": 10485760
   },
   "model": {
     "preferred": "google/gemini-2.0-flash-exp:free",
@@ -144,6 +145,17 @@ pip install -e .
   "language": "en"
 }
 ```
+
+### `ignore_patterns` and `max_index_file_size`
+You can configure the Iara Indexer's footprint to respect maximum file limits and skip specific artifacts from the RAG context memory.
+
+**`max_index_file_size`:** Sets the byte threshold for a single file to be read (e.g. `10485760` for 10MB overrides the default 1MB restriction).
+**`ignore_patterns`:** Skips specific files or directories from being read (e.g., fixture folders or auto-generated payload files, which add zero value to code reviews). 
+
+**Important Notes on `ignore_patterns` behavior:**
+- 🛠️ **Merged with Defaults:** Your defined patterns are **added** to a default list (which already includes `.git`, `node_modules`, `venv`, `__pycache__`, etc.). You do not need to rewrite these.
+- ⚡ **Wildcards & Prefix Mathing:** Iara uses Python's `fnmatch`, which means patterns like `test` match exact files or folders named `test`. To act as prefixes or match extensions, use wildcards (e.g., `test*` to match `test_dir`, or `*_generated.*` to match files ending with that).
+- ⚠️ **Be Specific:** Broad patterns can inadvertently blind the Indexer. Using `*` or `*.py` as an ignore pattern will result in Iara ignoring your actual source code. It's safer to scope correctly (e.g., `tests/fixtures/*` or `logs/*.log`).
 
 ### Supported providers and example models
 

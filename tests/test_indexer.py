@@ -2,6 +2,7 @@
 import unittest
 import ast
 import os
+import fnmatch
 from unittest.mock import MagicMock, patch, mock_open
 from iara.memory.indexer import CodeChunker, CodeVisitor, Indexer
 from iara.memory.interface import CodeChunk
@@ -187,7 +188,82 @@ class TestIndexer(unittest.TestCase):
             self.assertTrue(any('utils.py' in p for p in opened_files))
             self.assertFalse(any('ignored.pyc' in p for p in opened_files))
 
-    def test_indexer_handles_read_errors(self):
+    def test_indexer_config_ignore_patterns(self):
+        """Test that indexer correctly merges ignore_patterns from config."""
+        mock_memory = MagicMock()
+        config = {"review": {"ignore_patterns": ["migrations", "fixtures", "*_generated.*"]}}
+        indexer = Indexer(mock_memory, config=config)
+        
+        self.assertIn("migrations", indexer.ignore_patterns)
+        self.assertIn("fixtures", indexer.ignore_patterns)
+        self.assertIn("*_generated.*", indexer.ignore_patterns)
+        self.assertIn(".git", indexer.ignore_patterns) # Default should still be there 
+
+        with patch('os.walk') as mock_walk, \
+             patch('builtins.open', mock_open(read_data="print('hello')")) as mock_file, \
+             patch('os.path.getsize', return_value=5), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=True):
+            
+            mock_walk.return_value = [
+                ('root', ['migrations', 'src'], ['valid.py', 'foo_generated.py']),
+                ('root/migrations', [], ['001_initial.py']),
+                ('root/src', [], ['main.py', 'api_generated.py'])
+            ]
+            
+            indexer.index_project('root')
+            
+            opened_files = []
+            for c in mock_file.mock_calls:
+                if c[0] == '':
+                    args = c[1]
+                    if args:
+                        opened_files.append(args[0])
+            
+            opened_files = [os.path.normpath(p) for p in opened_files]
+            
+            self.assertTrue(any('valid.py' in p for p in opened_files))
+            self.assertTrue(any('main.py' in p for p in opened_files))
+            self.assertFalse(any('001_initial.py' in p for p in opened_files))
+            self.assertFalse(any('foo_generated.py' in p for p in opened_files))
+            self.assertFalse(any('api_generated.py' in p for p in opened_files))
+
+    def test_indexer_config_ignore_patterns_invalid_and_overlapping(self):
+        """Test that invalid ignore patterns are gracefully skipped, and overlapping patterns behave correctly."""
+        mock_memory = MagicMock()
+        # "*[a-z" is an invalid fnmatch pattern (unclosed group) that may cause re.error
+        config = {"review": {"ignore_patterns": ["invalid_pattern", "test", "test_dir", "*.tmp"]}}
+        
+        # We need to mock fnmatch.translate to return an invalid regex to trigger the re.error, 
+        # since fnmatch natively parses mostly any malformed wildcard without crashing.
+        original_translate = fnmatch.translate
+        def side_effect(p):
+            if p == "invalid_pattern":
+                return "*[a-z" # Invalid regex: nothing to repeat
+            return original_translate(p)
+            
+        with patch('iara.memory.indexer.logger.warning') as mock_logger, \
+             patch('fnmatch.translate', side_effect=side_effect):
+            indexer = Indexer(mock_memory, config=config)
+            
+            # The invalid pattern should be skipped
+            self.assertNotIn("invalid_pattern", indexer.ignore_patterns)
+            # The warning should be logged
+            mock_logger.assert_called_once_with("Invalid ignore pattern 'invalid_pattern' provided in config. Skipping.")
+            
+            # Valid patterns should be in
+            self.assertIn("test", indexer.ignore_patterns)
+            self.assertIn("test_dir", indexer.ignore_patterns)
+            self.assertIn("*.tmp", indexer.ignore_patterns)
+            
+            # Test overlaps and extensions directly
+            self.assertTrue(indexer._is_ignored("test"))
+            self.assertTrue(indexer._is_ignored("test_dir"))
+            self.assertFalse(indexer._is_ignored("test_directory"))  # Overlap should match exactly prefix 'test' which maps to 'test', not prefix acting as '*'.
+            
+            self.assertTrue(indexer._is_ignored("file.tmp"))
+            self.assertTrue(indexer._is_ignored("foo.tmp"))
+            self.assertFalse(indexer._is_ignored("file.tmp2"))
         """Test that indexer continues despite file read errors."""
         mock_memory = MagicMock()
         indexer = Indexer(mock_memory)

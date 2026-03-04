@@ -151,6 +151,9 @@ class CodeVisitor(ast.NodeVisitor):
 
 import hashlib
 import json
+import fnmatch
+import re
+from pathlib import Path
 
 class Indexer:
     """Walks directory and indexes files."""
@@ -161,16 +164,35 @@ class Indexer:
         self.config = config or load_config()
         self.max_index_file_size = self.config.get("review", {}).get("max_index_file_size", 1048576)
         self.chunker = CodeChunker()
+        user_ignore_patterns = self.config.get("review", {}).get("ignore_patterns", [])
+        
+        valid_user_patterns = []
+        for p in user_ignore_patterns:
+            try:
+                # Test if the pattern can be compiled to regex
+                re.compile(fnmatch.translate(p))
+                valid_user_patterns.append(p)
+            except re.error:
+                logger.warning(f"Invalid ignore pattern '{p}' provided in config. Skipping.")
+                
         self.ignore_patterns = set([
             ".git", "__pycache__", "venv", ".venv", "node_modules", 
             ".idea", ".vscode", "dist", "build", ".iara", "__pypackages__"
-        ])
+        ]).union(set(valid_user_patterns))
         self.ignore_extensions = set([
             ".pyc", ".pyo", ".pyd", ".so", ".dll", ".exe", ".bin", ".iso", 
             ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".psd", ".pdf",
             ".zip", ".tar", ".gz", ".7z", ".rar", ".db", ".sqlite", ".lancedb"
         ])
         self.hashes_file = ".iara/file_hashes.json"
+        self._ignore_regex = None
+
+    def _is_ignored(self, name: str) -> bool:
+        if self._ignore_regex is None:
+            regexes = [fnmatch.translate(p) for p in self.ignore_patterns]
+            self._ignore_regex = re.compile('|'.join(regexes)) if regexes else None
+            
+        return bool(self._ignore_regex and self._ignore_regex.match(name))
 
     def _load_hashes(self):
         if os.path.exists(self.hashes_file):
@@ -258,14 +280,19 @@ class Indexer:
         
         for root, dirs, files in os.walk(root_path):
             # Defensive check: if we somehow entered an ignored directory
-            if any(ign in root.split(os.sep) for ign in self.ignore_patterns):
+            # Handle both scenarios gracefully using Path.parts
+            path_parts = Path(root).parts
+            if any(self._is_ignored(p) for p in path_parts):
                 continue
 
             # Filtering ignored directories
-            dirs[:] = [d for d in dirs if d not in self.ignore_patterns]
+            dirs[:] = [d for d in dirs if not self._is_ignored(d)]
             
             for file in files:
                 if file.startswith("."):
+                    continue
+                
+                if self._is_ignored(file):
                     continue
                 
                 _, ext = os.path.splitext(file)
