@@ -52,3 +52,52 @@ index abc..def 100644
         self.mock_memory.retrieve.assert_called_once()
         self.assertIn("def my_func(): pass", context)
         self.assertIn("Project Context", context)
+
+    def test_deduplicate_chunks_fallback_no_encoder(self):
+        chunks = [CodeChunk(id=f"{i}", content=f"content {i}", file_path="f.py", start_line=1, end_line=1, type="function", metadata={}) for i in range(3)]
+        self.mock_memory.encoder = None
+        
+        kept = self.retriever._deduplicate_chunks(chunks)
+        self.assertEqual(len(kept), 3)
+
+    def test_deduplicate_chunks_with_encoder(self):
+        chunks = [
+            CodeChunk(id="1", content="def a(): pass", file_path="f.py", start_line=1, end_line=1, type="function", metadata={}),
+            CodeChunk(id="2", content="def a(): pass", file_path="f.py", start_line=1, end_line=1, type="function", metadata={}),
+            CodeChunk(id="3", content="def b(): print('hi')", file_path="f.py", start_line=1, end_line=1, type="function", metadata={})
+        ]
+        
+        # Mock an encoder that assigns identical vectors to identical content and different otherwise.
+        mock_encoder = MagicMock()
+        def mock_encode(contents):
+            vecs = []
+            for c in contents:
+                if c == "def a(): pass":
+                    vecs.append([1.0, 0.0])
+                else:
+                    vecs.append([0.0, 1.0])
+            return vecs
+        mock_encoder.encode.side_effect = mock_encode
+        self.mock_memory.encoder = mock_encoder
+
+        kept = self.retriever._deduplicate_chunks(chunks, similarity_threshold=0.92)
+        
+        # Expecting chunks 1 and 3
+        self.assertEqual(len(kept), 2)
+        self.assertEqual(kept[0].id, "1")
+        self.assertEqual(kept[1].id, "3")
+
+    def test_cosine_similarity(self):
+        from iara.memory.retriever import _cosine_similarity
+        
+        sim1 = _cosine_similarity([1.0, 0.0], [1.0, 0.0])
+        self.assertAlmostEqual(sim1, 1.0)
+        
+        sim2 = _cosine_similarity([1.0, 0.0], [0.0, 1.0])
+        self.assertAlmostEqual(sim2, 0.0)
+        
+        sim3 = _cosine_similarity([1.0, 1.0], [2.0, 2.0])
+        self.assertAlmostEqual(sim3, 1.0)
+        
+        sim4 = _cosine_similarity([], [1.0])
+        self.assertEqual(sim4, 0.0)
