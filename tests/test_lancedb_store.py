@@ -375,6 +375,52 @@ class TestLanceDBMemory(unittest.TestCase):
         self.assertEqual(ids_k10, {"A", "B"})
         self.assertEqual(ids_k100, {"A", "B"})
 
+    def test_rrf_merge_preserves_first_occurrence(self):
+        """RRF should preserve first occurrence when same ID appears in both lists."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        # Same ID "A" appears in both lists but with different content
+        vec_results = [
+            {"id": "A", "content": "vec_content", "source": "vector"}
+        ]
+        fts_results = [
+            {"id": "A", "content": "fts_content", "source": "fts"}
+        ]
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # Should have only 1 item (no duplicates)
+        self.assertEqual(len(merged), 1)
+
+        # Should preserve the first occurrence (from vec_results)
+        self.assertEqual(merged[0]["content"], "vec_content")
+        self.assertEqual(merged[0]["source"], "vector")
+
+    def test_rrf_merge_handles_missing_id(self):
+        """RRF should gracefully skip items without 'id' key."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = [
+            {"id": "A", "content": "A"},
+            {"content": "no_id_1"},  # Missing 'id' key
+            {"id": "B", "content": "B"}
+        ]
+        fts_results = [
+            {"content": "no_id_2"},  # Missing 'id' key
+            {"id": "C", "content": "C"}
+        ]
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # Should only include items with valid IDs (A, B, C)
+        self.assertEqual(len(merged), 3)
+        merged_ids = {r["id"] for r in merged}
+        self.assertEqual(merged_ids, {"A", "B", "C"})
+
     def test_hybrid_search_both_searches_called(self):
         """Hybrid search should call both vector and FTS searches."""
         from iara.memory.lancedb_store import LanceDBMemory

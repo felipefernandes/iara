@@ -56,19 +56,28 @@ class LanceDBMemory(MemoryInterface):
             Unified list sorted by combined RRF score (descending)
         """
         scores = {}
+        all_items = {}
 
         # Calculate RRF scores from vector search ranking
+        # Use standard RRF formula: 1 / (k + rank)
         for rank, item in enumerate(vec_results):
-            item_id = item["id"]
-            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
+            item_id = item.get("id")
+            if item_id is None:
+                continue  # Skip items without ID
+            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank)
+            # Store first occurrence to avoid overwriting with duplicates
+            if item_id not in all_items:
+                all_items[item_id] = item
 
         # Calculate RRF scores from FTS search ranking
         for rank, item in enumerate(fts_results):
-            item_id = item["id"]
-            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
-
-        # Build lookup map of all unique items
-        all_items = {item["id"]: item for item in vec_results + fts_results}
+            item_id = item.get("id")
+            if item_id is None:
+                continue  # Skip items without ID
+            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank)
+            # Store first occurrence to avoid overwriting with duplicates
+            if item_id not in all_items:
+                all_items[item_id] = item
 
         # Sort by RRF score (descending)
         sorted_ids = sorted(scores, key=scores.get, reverse=True)
