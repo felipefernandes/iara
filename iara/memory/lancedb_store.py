@@ -59,12 +59,13 @@ class LanceDBMemory(MemoryInterface):
         all_items = {}
 
         # Calculate RRF scores from vector search ranking
-        # Use standard RRF formula: 1 / (k + rank)
+        # Use standard RRF formula: 1 / (k + rank + 1)
+        # Note: rank starts at 0 (enumerate), so we add 1 to align with standard RRF (ranks starting at 1)
         for rank, item in enumerate(vec_results):
             item_id = item.get("id")
             if item_id is None:
                 continue  # Skip items without ID
-            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank)
+            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
             # Store first occurrence to avoid overwriting with duplicates
             if item_id not in all_items:
                 all_items[item_id] = item
@@ -74,7 +75,7 @@ class LanceDBMemory(MemoryInterface):
             item_id = item.get("id")
             if item_id is None:
                 continue  # Skip items without ID
-            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank)
+            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
             # Store first occurrence to avoid overwriting with duplicates
             if item_id not in all_items:
                 all_items[item_id] = item
