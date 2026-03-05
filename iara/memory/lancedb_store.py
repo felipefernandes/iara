@@ -109,7 +109,14 @@ class LanceDBMemory(MemoryInterface):
 
         if self.table_name in self.db.table_names():
             table = self.db.open_table(self.table_name)
-            table.add(data)
+            try:
+                table.add(data)
+            except Exception as e:
+                logger.error(
+                    f"Failed to add data to existing table (schema mismatch?): {e}. "
+                    "Consider clearing the index with .clear() and re-indexing."
+                )
+                raise
         else:
             table = self.db.create_table(self.table_name, data)
             try:
@@ -145,7 +152,10 @@ class LanceDBMemory(MemoryInterface):
             )
         except Exception as e:
             # Graceful fallback to vector-only search
-            logger.warning(f"FTS search failed, falling back to vector-only: {e}")
+            logger.warning(
+                f"FTS search failed, falling back to vector-only: {e}. "
+                "If FTS index is missing, re-index your codebase to enable hybrid search."
+            )
             results = vec_results[:n_results]
 
         # Convert to CodeChunk objects
