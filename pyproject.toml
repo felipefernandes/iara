@@ -11,6 +11,9 @@ license = "MIT"
 requires-python = ">=3.8"
 authors = [{name = "Felipe Fernandes"}]
 keywords = ["code-review", "ai", "llm", "openrouter", "github", "gitlab"]
+dependencies = [
+    "requests>=2.25.0"
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

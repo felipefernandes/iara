@@ -1,0 +1,21 @@
+{
+  "ci": {
+    "platform": "github",
+    "review_mode": "inline"
+  },
+  "project": {
+    "name": "My Awesome Project",
+    "description": "A RESTful API built with FastAPI and PostgreSQL.",
+    "tech_stack": ["Python", "FastAPI", "PostgreSQL", "Docker"]
+  },
+  "review": {
+    "focus_areas": ["Security", "Clean Code", "Error Handling"],
+    "ignore_patterns": ["tests/*", "migrations/*"]
+  },
+  "model": {
+    "preferred": "google/gemini-2.0-flash-exp:free",
+    "fallback_enabled": true,
+    "provider": "openrouter"
+  },
+  "language": "en"
+}

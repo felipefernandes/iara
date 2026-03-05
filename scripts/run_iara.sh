@@ -165,29 +165,23 @@ fi
 if [ "$POST_COMMENT" = "true" ] && [ -n "$GITHUB_TOKEN" ]; then
   echo "Posting review comment to PR #${PR_NUMBER}..."
 
-  COMMENT_BODY="## 🧜‍♀️ Iara Code Review
+  # Export environment variables for post_comment.py
+  export GITHUB_TOKEN
+  export REPO
+  export PR_NUMBER
+  export HEAD_SHA="${GITHUB_SHA}"
 
-${REVIEW}
+  # Use Python module to handle comment posting (supports both inline and summary modes)
+  echo "$REVIEW" | python3 -m iara.post_comment - 2>/tmp/post_comment_stderr.txt
 
----
-*Reviewed by [Iara](https://github.com/felipefernandes/iara) - AI Code Reviewer*"
-
-  # Use jq to properly escape the body for JSON
-  PAYLOAD=$(jq -n --arg body "$COMMENT_BODY" '{"body": $body}')
-
-  HTTP_CODE=$(curl -s -o /tmp/gh_response.txt -w "%{http_code}" \
-    -X POST \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    -H "Accept: application/vnd.github.v3+json" \
-    -H "Content-Type: application/json" \
-    -d "$PAYLOAD" \
-    "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/comments")
-
-  if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+  # Check exit code
+  if [ $? -eq 0 ]; then
     echo "Review posted successfully to PR #${PR_NUMBER}."
   else
-    echo "::warning::Failed to post comment (HTTP ${HTTP_CODE})"
-    cat /tmp/gh_response.txt
+    echo "::warning::Failed to post comment"
+    if [ -s /tmp/post_comment_stderr.txt ]; then
+      cat /tmp/post_comment_stderr.txt
+    fi
   fi
 fi
 
