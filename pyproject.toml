@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iara-reviewer"
-version = "1.6.0"
+version = "1.7.0"
 description = "AI-powered code reviewer using OpenRouter LLMs"
 readme = "README.md"
 license = "MIT"
