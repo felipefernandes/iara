@@ -357,6 +357,59 @@ public struct Vector2D {
         self.assertEqual(len(chunks), 0)
 
 
+class TestSmartChunkingEdgeCases(unittest.TestCase):
+    """Edge-case tests to improve Codecov coverage on _chunk_brace_language."""
+
+    def setUp(self):
+        self.chunker = CodeChunker()
+
+    def test_escape_chars_in_strings(self):
+        """Escaped quotes inside strings must not break brace balancing (lines 167-172)."""
+        code = '''\
+function escapeTest() {
+    const msg = "She said \\"hello\\"";
+    return msg;
+}
+'''
+        chunks = self.chunker.chunk_file("escape.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "escapeTest")
+        self.assertIn("return msg;", chunks[0].content)
+
+    def test_declaration_without_braces(self):
+        """A declaration regex match with no opening brace should be skipped (line 155)."""
+        # This is a function declaration without a body (e.g., forward declaration)
+        code = "function noBody()\n"
+        chunks = self.chunker.chunk_file("nobrace.js", code)
+        # Should fall back to text since no smart chunks were found
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_unbalanced_braces_fallback(self):
+        """Unbalanced braces should skip the block and fall back to text (line 193)."""
+        code = '''\
+function broken() {
+    if (true) {
+        return 1;
+    // missing closing brace for function
+'''
+        chunks = self.chunker.chunk_file("unbalanced.js", code)
+        # unbalanced brace means the smart chunk is skipped → text fallback
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_backslash_outside_string(self):
+        """Backslash char outside of strings exercises escape tracking (lines 170-172)."""
+        code = '''\
+function regexTest() {
+    const re = /\\d+/;
+    return re;
+}
+'''
+        chunks = self.chunker.chunk_file("regex.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "regexTest")
+
+
+
 class TestIndexer(unittest.TestCase):
     def test_index_project_integration(self):
         """Integration test for index_project using a temporary directory."""
