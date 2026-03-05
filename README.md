@@ -508,7 +508,7 @@ A complete template is available at `gitlab-ci.yml`.
 
 Iara is available as a pre-built Docker image on **GitHub Container Registry (GHCR)**, which significantly speeds up CI/CD execution by eliminating dependency installation time.
 
-**Image:** `ghcr.io/felipefernandes/iara-bot-reviewer:latest`
+**Image:** `ghcr.io/felipefernandes/iara:latest`
 
 ### Why use the Docker image?
 
@@ -538,7 +538,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/felipefernandes/iara-bot-reviewer:latest
+      image: ghcr.io/felipefernandes/iara:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -565,7 +565,7 @@ stages:
 
 iara_code_review:
   stage: review
-  image: ghcr.io/felipefernandes/iara-bot-reviewer:latest
+  image: ghcr.io/felipefernandes/iara:latest
   script:
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
     - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
@@ -585,7 +585,7 @@ iara_code_review:
 docker run --rm \
   -e OPENROUTER_API_KEY="sk-or-..." \
   -e PR_DIFF="$(git diff main...HEAD)" \
-  ghcr.io/felipefernandes/iara-bot-reviewer:latest
+  ghcr.io/felipefernandes/iara:latest
 ```
 
 ### Local Testing
@@ -594,13 +594,13 @@ You can test the Docker image locally before deploying to CI:
 
 ```bash
 # Pull the image
-docker pull ghcr.io/felipefernandes/iara-bot-reviewer:latest
+docker pull ghcr.io/felipefernandes/iara:latest
 
 # Run a review
 docker run --rm \
   -e OPENROUTER_API_KEY="sk-or-..." \
   -e PR_DIFF="$(git diff main)" \
-  ghcr.io/felipefernandes/iara-bot-reviewer:latest
+  ghcr.io/felipefernandes/iara:latest
 ```
 
 ---

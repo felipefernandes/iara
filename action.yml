@@ -50,7 +50,7 @@ outputs:
 
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/felipefernandes/iara-bot-reviewer:latest'
+  image: 'docker://ghcr.io/felipefernandes/iara:latest'
   env:
     INPUT_OPENROUTER_API_KEY: ${{ inputs.openrouter_api_key }}
     INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
