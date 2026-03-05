@@ -201,6 +201,19 @@ iara memory index
 ```
 This will parse your code (extracting functions, classes, and calls) and store it in `.iara/data/lancedb`.
 
+#### Smart Chunking — Supported Languages
+
+Iara uses **language-aware chunking** to ensure that code blocks fed into the LLM represent complete logical units (functions, classes, methods) instead of arbitrary 100-line blocks:
+
+| Extension(s) | Strategy | What it extracts |
+| :--- | :--- | :--- |
+| `.py` | Python AST | Functions, async functions, classes |
+| `.js`, `.ts` | Regex + brace balancing | Functions, async functions, classes, arrow functions |
+| `.cs` | Regex + brace balancing | Classes, structs, interfaces, enums, methods |
+| All others | Plain-text fallback | Blocks of up to 100 lines |
+
+> **Why does this matter?** Chunks that cut a function in half generate noisy context for the LLM. Smart chunking keeps logical units intact, improving review accuracy and reducing token waste.
+
 ### 3. Review with Context
 Just run the review command as usual. Iara will automatically use the memory to retrieve relevant context for the changed code.
 ```bash

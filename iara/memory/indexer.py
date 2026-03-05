@@ -1,11 +1,52 @@
 import os
+import re
 import ast
 import sys
 import logging
-from typing import List, Generator
+from typing import List, Generator, Tuple
 from iara.memory.interface import CodeChunk
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Regex patterns for brace-language smart chunking (JS/TS/C#)
+# ---------------------------------------------------------------------------
+_JS_TS_PATTERNS = [
+    # Named function: function foo(…) { or export async function foo(…) {
+    re.compile(
+        r'^(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)',
+        re.MULTILINE
+    ),
+    # Class declaration: class Foo { or export class Foo extends Bar {
+    re.compile(
+        r'^(?:export\s+)?class\s+(\w+)',
+        re.MULTILINE
+    ),
+    # Arrow-function const: const foo = (…) => { or const foo = async (…) => {
+    re.compile(
+        r'^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>',
+        re.MULTILINE
+    ),
+]
+
+_CS_PATTERNS = [
+    # Class / struct / interface / enum
+    re.compile(
+        r'(?:public|private|protected|internal)?\s*'
+        r'(?:static\s+|abstract\s+|sealed\s+|partial\s+)*'
+        r'(?:class|struct|interface|record|enum)\s+(\w+)',
+        re.MULTILINE
+    ),
+    # Method declaration  (visibility + return-type + name + parentheses)
+    re.compile(
+        r'(?:public|private|protected|internal)\s+'
+        r'(?:static\s+|virtual\s+|override\s+|abstract\s+|async\s+)*'
+        r'[\w<>\[\],\s]+\s+(\w+)\s*\([^)]*\)',
+        re.MULTILINE
+    ),
+]
+
 
 class CodeChunker:
     """Splits code into chunks for indexing."""
@@ -16,8 +57,14 @@ class CodeChunker:
         _, ext = os.path.splitext(file_path)
         if ext == ".py":
             return self._chunk_python(file_path, content)
+        if ext in (".js", ".ts"):
+            return self._chunk_js_ts(file_path, content)
+        if ext == ".cs":
+            return self._chunk_csharp(file_path, content)
         # Fallback for other files: simple block chunking
         return self._chunk_text(file_path, content)
+
+    # -- Python (AST) -------------------------------------------------------
 
     def _chunk_python(self, file_path: str, content: str) -> List[CodeChunk]:
         """
@@ -36,6 +83,144 @@ class CodeChunker:
         visitor = CodeVisitor(file_path, content)
         visitor.visit(tree)
         return visitor.chunks
+
+    # -- JavaScript / TypeScript (Regex + brace balancing) ------------------
+
+    def _chunk_js_ts(self, file_path: str, content: str) -> List[CodeChunk]:
+        """Chunk JS/TS code by function and class declarations."""
+        chunks = self._chunk_brace_language(file_path, content, _JS_TS_PATTERNS)
+        return chunks if chunks else self._chunk_text(file_path, content)
+
+    # -- C# (Regex + brace balancing) ---------------------------------------
+
+    def _chunk_csharp(self, file_path: str, content: str) -> List[CodeChunk]:
+        """Chunk C# code by class and method declarations."""
+        chunks = self._chunk_brace_language(file_path, content, _CS_PATTERNS)
+        return chunks if chunks else self._chunk_text(file_path, content)
+
+    # -- Shared brace-language helper ---------------------------------------
+
+    def _chunk_brace_language(
+        self,
+        file_path: str,
+        content: str,
+        patterns: List[re.Pattern],
+    ) -> List[CodeChunk]:
+        """Extract code blocks by matching declaration patterns then balancing braces.
+
+        For each regex match the helper locates the first opening brace ``{``
+        after the match and counts braces until the matching ``}`` is found.
+        The full text from the match start to the closing brace (inclusive)
+        becomes one ``CodeChunk``.  Matches whose opening brace falls inside
+        an already-extracted block are skipped to avoid duplicates.
+        """
+        lines = content.splitlines(True)  # keep line endings for offset maths
+        line_offsets: List[int] = []
+        offset = 0
+        for line in lines:
+            line_offsets.append(offset)
+            offset += len(line)
+
+        def _offset_to_line(off: int) -> int:
+            """Return the 1-based line number for a character offset."""
+            lo, hi = 0, len(line_offsets) - 1
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if line_offsets[mid] <= off:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            return lo + 1  # 1-based
+
+        # Collect all matches across all patterns
+        raw_matches: List[Tuple[int, int, str]] = []  # (start, end_of_match, name)
+        for pat in patterns:
+            for m in pat.finditer(content):
+                name = m.group(1) if m.lastindex else ""
+                raw_matches.append((m.start(), m.end(), name))
+
+        # Sort by position so we can skip nested matches
+        raw_matches.sort(key=lambda t: t[0])
+
+        chunks: List[CodeChunk] = []
+        covered_end = -1  # track the furthest byte already covered
+
+        for match_start, match_end, name in raw_matches:
+            if match_start < covered_end:
+                continue  # inside a previously extracted block
+
+            # Find the first '{' at or after match_start
+            brace_pos = content.find("{", match_start)
+            if brace_pos == -1:
+                continue  # no body to extract
+
+            # Balance braces
+            depth = 0
+            block_end = brace_pos
+            in_string: str = ""
+            escape_next = False
+
+            for i in range(brace_pos, len(content)):
+                ch = content[i]
+
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if ch == "\\":
+                    escape_next = True
+                    continue
+
+                # Simple string tracking (single / double / template-literal)
+                if in_string:
+                    if ch == in_string:
+                        in_string = ""
+                    continue
+                if ch in ('"', "'", "`"):
+                    in_string = ch
+                    continue
+
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        block_end = i
+                        break
+
+            if depth != 0:
+                # Unbalanced – skip this match
+                continue
+
+            block_text = content[match_start: block_end + 1]
+            start_line = _offset_to_line(match_start)
+            end_line = _offset_to_line(block_end)
+
+            # Determine chunk type
+            declaration_snippet = content[match_start:match_end]
+            _CLASS_KEYWORDS = ("class ", "struct ", "interface ", "record ", "enum ")
+            chunk_type = "class" if any(kw in declaration_snippet for kw in _CLASS_KEYWORDS) else "function"
+
+            chunks.append(CodeChunk(
+                id=f"{file_path}:{name}:{start_line}",
+                content=block_text,
+                file_path=file_path,
+                start_line=start_line,
+                end_line=end_line,
+                type=chunk_type,
+                metadata={
+                    "name": name,
+                    "docstring": "",
+                    "calls": [],
+                    "inherits": [],
+                },
+            ))
+
+            covered_end = block_end + 1
+
+        return chunks
+
+    # -- Plain-text fallback ------------------------------------------------
 
     def _chunk_text(self, file_path: str, content: str) -> List[CodeChunk]:
         """Simple chunking for non-code files."""
@@ -152,7 +337,6 @@ class CodeVisitor(ast.NodeVisitor):
 import hashlib
 import json
 import fnmatch
-import re
 from pathlib import Path
 
 class Indexer:
