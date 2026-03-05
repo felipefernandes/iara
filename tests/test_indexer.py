@@ -99,6 +99,317 @@ async def async_func():
         self.assertEqual(chunks[0].type, "text")
         self.assertEqual(chunks[1].type, "text")
 
+    def test_unsupported_extension_falls_back_to_text(self):
+        """Files with unknown extensions must use the plain-text fallback."""
+        content = "some markdown\n## heading\nmore lines\n"
+        chunks = self.chunker.chunk_file("readme.md", content)
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+
+class TestCodeChunkerJsTs(unittest.TestCase):
+    """Tests for JavaScript / TypeScript smart chunking (Task 5)."""
+
+    def setUp(self):
+        self.chunker = CodeChunker()
+
+    # -- JavaScript ---------------------------------------------------------
+
+    def test_js_named_function(self):
+        code = """\
+function greet(name) {
+    console.log("Hello " + name);
+    return true;
+}
+"""
+        chunks = self.chunker.chunk_file("app.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].type, "function")
+        self.assertEqual(chunks[0].metadata["name"], "greet")
+        self.assertIn("console.log", chunks[0].content)
+
+    def test_js_async_function(self):
+        code = """\
+async function fetchData(url) {
+    const res = await fetch(url);
+    return res.json();
+}
+"""
+        chunks = self.chunker.chunk_file("api.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "fetchData")
+
+    def test_js_export_function(self):
+        code = """\
+export function helper() {
+    return 42;
+}
+"""
+        chunks = self.chunker.chunk_file("utils.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "helper")
+
+    def test_js_class(self):
+        code = """\
+class Animal {
+    constructor(name) {
+        this.name = name;
+    }
+
+    speak() {
+        return this.name + " makes a noise.";
+    }
+}
+"""
+        chunks = self.chunker.chunk_file("models.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].type, "class")
+        self.assertEqual(chunks[0].metadata["name"], "Animal")
+        self.assertIn("constructor", chunks[0].content)
+        self.assertIn("speak", chunks[0].content)
+
+    def test_js_arrow_function(self):
+        code = """\
+const add = (a, b) => {
+    return a + b;
+};
+"""
+        chunks = self.chunker.chunk_file("math.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "add")
+
+    def test_js_multiple_declarations(self):
+        code = """\
+function foo() {
+    return 1;
+}
+
+class Bar {
+    baz() {
+        return 2;
+    }
+}
+
+const qux = (x) => {
+    return x * 2;
+};
+"""
+        chunks = self.chunker.chunk_file("multi.js", code)
+        names = [c.metadata["name"] for c in chunks]
+        self.assertIn("foo", names)
+        self.assertIn("Bar", names)
+        self.assertIn("qux", names)
+        self.assertEqual(len(chunks), 3)
+
+    # -- TypeScript ---------------------------------------------------------
+
+    def test_ts_function(self):
+        code = """\
+function sum(a: number, b: number): number {
+    return a + b;
+}
+"""
+        chunks = self.chunker.chunk_file("calc.ts", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "sum")
+
+    def test_ts_export_class(self):
+        code = """\
+export class UserService {
+    private users: string[] = [];
+
+    addUser(name: string): void {
+        this.users.push(name);
+    }
+}
+"""
+        chunks = self.chunker.chunk_file("service.ts", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].type, "class")
+        self.assertEqual(chunks[0].metadata["name"], "UserService")
+
+    def test_ts_async_arrow(self):
+        code = """\
+export const fetchUser = async (id: number) => {
+    const res = await api.get(id);
+    return res.data;
+};
+"""
+        chunks = self.chunker.chunk_file("api.ts", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "fetchUser")
+
+    # -- Edge cases ---------------------------------------------------------
+
+    def test_js_fallback_on_empty_content(self):
+        """Empty JS files should produce no chunks (empty text fallback)."""
+        chunks = self.chunker.chunk_file("empty.js", "")
+        self.assertEqual(len(chunks), 0)
+
+    def test_js_fallback_no_declarations(self):
+        """JS file with no recognisable declarations should fall back to text."""
+        code = "// just a comment\nvar x = 1;\nvar y = 2;\n"
+        chunks = self.chunker.chunk_file("plain.js", code)
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_js_strings_with_braces(self):
+        """Braces inside strings should not break brace-balancing."""
+        code = """\
+function format() {
+    const tmpl = "{ value }";
+    return tmpl;
+}
+"""
+        chunks = self.chunker.chunk_file("str.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "format")
+        self.assertIn("return tmpl;", chunks[0].content)
+
+
+class TestCodeChunkerCSharp(unittest.TestCase):
+    """Tests for C# smart chunking (Task 6)."""
+
+    def setUp(self):
+        self.chunker = CodeChunker()
+
+    def test_cs_class(self):
+        code = """\
+public class PlayerController : MonoBehaviour {
+    private float speed = 5f;
+
+    void Update() {
+        transform.Translate(Vector3.forward * speed * Time.deltaTime);
+    }
+}
+"""
+        chunks = self.chunker.chunk_file("PlayerController.cs", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].type, "class")
+        self.assertEqual(chunks[0].metadata["name"], "PlayerController")
+        self.assertIn("Update", chunks[0].content)
+
+    def test_cs_method_standalone(self):
+        """A public method outside of a class block should still be chunked."""
+        code = """\
+public void Start() {
+    Debug.Log("Started");
+}
+
+public int Calculate(int a, int b) {
+    return a + b;
+}
+"""
+        chunks = self.chunker.chunk_file("methods.cs", code)
+        names = [c.metadata["name"] for c in chunks]
+        self.assertIn("Start", names)
+        self.assertIn("Calculate", names)
+
+    def test_cs_multiple_classes(self):
+        code = """\
+public class Enemy {
+    public void Attack() {
+        Debug.Log("Attack!");
+    }
+}
+
+internal class Spawner {
+    public void Spawn() {
+        Instantiate(enemyPrefab);
+    }
+}
+"""
+        chunks = self.chunker.chunk_file("game.cs", code)
+        names = [c.metadata["name"] for c in chunks]
+        self.assertIn("Enemy", names)
+        self.assertIn("Spawner", names)
+
+    def test_cs_interface(self):
+        code = """\
+public interface IDamageable {
+    void TakeDamage(int amount);
+    bool IsAlive();
+}
+"""
+        chunks = self.chunker.chunk_file("interfaces.cs", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].type, "class")  # interface categorised as class
+        self.assertEqual(chunks[0].metadata["name"], "IDamageable")
+
+    def test_cs_struct(self):
+        code = """\
+public struct Vector2D {
+    public float X;
+    public float Y;
+}
+"""
+        chunks = self.chunker.chunk_file("structs.cs", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "Vector2D")
+
+    def test_cs_fallback_no_declarations(self):
+        """C# file with no recognisable declarations should fall back to text."""
+        code = "// configuration\nusing System;\n"
+        chunks = self.chunker.chunk_file("config.cs", code)
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_cs_empty_file(self):
+        """Empty C# file should return no chunks."""
+        chunks = self.chunker.chunk_file("empty.cs", "")
+        self.assertEqual(len(chunks), 0)
+
+
+class TestSmartChunkingEdgeCases(unittest.TestCase):
+    """Edge-case tests to improve Codecov coverage on _chunk_brace_language."""
+
+    def setUp(self):
+        self.chunker = CodeChunker()
+
+    def test_escape_chars_in_strings(self):
+        """Escaped quotes inside strings must not break brace balancing (lines 167-172)."""
+        code = '''\
+function escapeTest() {
+    const msg = "She said \\"hello\\"";
+    return msg;
+}
+'''
+        chunks = self.chunker.chunk_file("escape.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "escapeTest")
+        self.assertIn("return msg;", chunks[0].content)
+
+    def test_declaration_without_braces(self):
+        """A declaration regex match with no opening brace should be skipped (line 155)."""
+        # This is a function declaration without a body (e.g., forward declaration)
+        code = "function noBody()\n"
+        chunks = self.chunker.chunk_file("nobrace.js", code)
+        # Should fall back to text since no smart chunks were found
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_unbalanced_braces_fallback(self):
+        """Unbalanced braces should skip the block and fall back to text (line 193)."""
+        code = '''\
+function broken() {
+    if (true) {
+        return 1;
+    // missing closing brace for function
+'''
+        chunks = self.chunker.chunk_file("unbalanced.js", code)
+        # unbalanced brace means the smart chunk is skipped → text fallback
+        self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_backslash_outside_string(self):
+        """Backslash char outside of strings exercises escape tracking (lines 170-172)."""
+        code = '''\
+function regexTest() {
+    const re = /\\d+/;
+    return re;
+}
+'''
+        chunks = self.chunker.chunk_file("regex.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "regexTest")
+
+
+
 class TestIndexer(unittest.TestCase):
     def test_index_project_integration(self):
         """Integration test for index_project using a temporary directory."""
