@@ -12,6 +12,19 @@ Iara é uma ferramenta de revisão de código automatizada, agnóstica a projeto
 
 ---
 
+## Índice
+
+- [Funcionalidades](#-funcionalidades)
+- [Capacidades](#-capacidades)
+- [Instalação e Setup](#-instalação-e-setup)
+- [Como Usar](#-como-usar)
+- [Documentação](#-documentação)
+- [Testes](#-testes)
+- [Contribuindo](#-contribuindo)
+- [Licença](#-licença)
+
+---
+
 ## 🚀 Funcionalidades
 
 - **Agnóstica**: Configure o contexto do seu projeto (Tech Stack, Regras) via JSON.
@@ -121,67 +134,6 @@ pip install -e .
 
 ---
 
-## ⚙️ Configuração do Projeto
-
-O `iara init` cria automaticamente o `.iara.json`. Você também pode criá-lo manualmente:
-
-```json
-{
-  "project": {
-    "name": "Meu Projeto",
-    "description": "Descrição do projeto.",
-    "tech_stack": ["Python"]
-  },
-  "review": {
-    "focus_areas": ["Performance", "Security"],
-    "ignore_patterns": ["fixtures", "migrations", "generated"],
-    "max_index_file_size": 10485760
-  },
-  "model": {
-    "preferred": "google/gemini-2.0-flash-exp:free",
-    "fallback_enabled": true,
-    "provider": "openrouter"
-  },
-  "language": "pt-br"
-}
-```
-
-### `ignore_patterns` e `max_index_file_size`
-Você pode configurar o rastro do indexador Iara para respeitar limites de arquivos máximos ou pular artefatos específicos e pastas para não serem lidos dentro da memória context-aware RAG.
-
-**`max_index_file_size`:** Define um tamanho de restrição maxíma em bytes para considerar ler e indexar o arquivo (ex. `10485760` para um arquivo de 10MB substitui o padrão de 1MB).
-**`ignore_patterns`:** Pula pastas e arquivos especificos para não serem lidos (ex: pastas fixtures ou bins com payloads gerados automaticamente que você normalmente não iria incluir em code reviews).
-
-**Notas Importantes sobre o comportamento do `ignore_patterns`:**
-- 🛠️ **Mesclado com os Padrões:** Seus padrões informados nessa configuração são **adicionados** para a lista padrão da Iara (o bot já preenche ela com defaults como `.git`, `node_modules`, `venv`, `__pycache__` entre outros). Você não precisa declarar essas exclusões universais novamente.
-- ⚡ **Curingas (Wildcards) e Casamento por Prefixo:** A Iara usa a biblioteca nativa `fnmatch`, que significa que padrões inteiros explícitos como `test` casam especificamente contra um arquivo ou pasta englobada com nome de `test`. Para atuar como um prefixo ou buscar extensões, use curingas coringados do console (ex., `test*` casará tanto em `test_dir` como em `test_integration.py`, ou `*_generated.*` para englobar qualquer formato de sufixos na linguagem).
-- ⚠️ **Seja Específico e Estratégico:** Padrões muito amplos e curtos podem causar acidentes onde o bot varre completamente cego a indexação do seu RAG. O uso de `*` ou simplesmente `*.py` fará a Iara pular inteiramente arquivos importantíssimos de source e tests. É muito mais seguro e recomendado dar o escopo do folder com restrição (ex., `tests/fixtures/*` ou pastas inteiras como `migrations`).
-
-### Provedores suportados e modelos de exemplo
-
-| Provedor | valor de `provider` | Modelos de exemplo |
-| :--- | :--- | :--- |
-| OpenRouter (padrão) | `openrouter` | `google/gemini-2.0-flash-exp:free`, `meta-llama/llama-3.2-3b-instruct:free` |
-| OpenAI | `openai` | `gpt-4o`, `gpt-4.5-preview`, `o1` |
-| Google Gemini | `gemini` | `gemini-2.5-flash`, `gemini-2.5-pro` |
-| Anthropic Claude | `anthropic` | `claude-opus-4-5-20250929`, `claude-sonnet-4-5-20250929` |
-
-> **Nota**: O fallback inteligente para modelos gratuitos está disponível apenas para o OpenRouter. Ao usar `openai`, `gemini` ou `anthropic`, configure `"fallback_enabled": false`.
-
-O campo `language` controla o idioma das reviews. Valores suportados: `en`, `pt-br`, `es`, `fr`, `de`, `ja`, `zh`, `ko`, `ru`, ou qualquer idioma que o LLM entenda.
-
-Você também pode sobrescrever provedor, modelo e idioma via variáveis de ambiente:
-
-```bash
-export IARA_PROVIDER="anthropic"
-export IARA_MODEL="claude-sonnet-4-5-20250929"
-export IARA_LANGUAGE="pt-br"
-```
-
-Exemplo pronto disponível em `iara-example.json`.
-
----
-
 ## 🏃 Como Usar
 
 ### Via Pipe (Git Diff)
@@ -227,188 +179,28 @@ git diff | iara
 
 ---
 
-## 🐙 Integração GitHub
+## 📚 Documentação
 
-A Iara está disponível no [**GitHub Marketplace**](https://github.com/marketplace/actions/iara-code-reviewer) — você pode adicioná-la ao seu repositório em poucos cliques. Sem Docker! A Iara roda como uma **Composite Action** leve diretamente no runner, com cache automático de pip para execução rápida.
+Para guias detalhados e opções de configuração, veja:
 
-Adicione a Iara ao seu repositório GitHub em **2 passos**:
+- **[Guia de Configuração](docs/configuration.md)** - Configuração do projeto, provedores, modelos, memória RAG (em inglês)
+- **[Integração CI/CD](docs/ci-integration.md)** - GitHub Actions, GitLab CI, Docker, comentários inline (em inglês)
+- **[Guia de Contribuição](CONTRIBUTING.md)** - Setup de desenvolvimento, testes, pull requests (bilíngue)
 
-### 1. Configurar o secret
+### Exemplos de Configuração
 
-Vá em **Settings > Secrets and variables > Actions > New repository secret** e adicione a chave do seu provedor:
+Exemplos completos de configuração estão disponíveis em [`examples/`](examples/):
 
-| Provedor | Nome do secret |
-| :--- | :--- |
-| OpenRouter | `OPENROUTER_API_KEY` |
-| OpenAI | `OPENAI_API_KEY` |
-| Google Gemini | `GEMINI_API_KEY` |
-| Anthropic | `ANTHROPIC_API_KEY` |
+- [`examples/iara-example.json`](examples/iara-example.json) - Configuração padrão
+- [`examples/iara-example-inline.json`](examples/iara-example-inline.json) - Modo de comentários inline em PRs
+- [`examples/github-workflow.yml`](examples/github-workflow.yml) - Workflow do GitHub Actions
+- [`examples/gitlab-ci.yml`](examples/gitlab-ci.yml) - Pipeline do GitLab CI
 
-### 2. Criar o workflow
+### Links Rápidos
 
-Crie o arquivo `.github/workflows/iara-review.yml`.
-
-**Com OpenRouter (padrão, modelos gratuitos):**
-
-```yaml
-name: Iara Code Review
-
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-permissions:
-  pull-requests: write
-  contents: read
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    name: AI Code Review
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run Iara Code Review
-        uses: felipefernandes/iara@main
-        with:
-          openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**Com Anthropic Claude:**
-
-```yaml
-      - name: Run Iara Code Review
-        uses: felipefernandes/iara@main
-        with:
-          provider: anthropic
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: "claude-sonnet-4-5-20250929"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**Com OpenAI:**
-
-```yaml
-      - name: Run Iara Code Review
-        uses: felipefernandes/iara@main
-        with:
-          provider: openai
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          model: "gpt-4o"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**Com Google Gemini:**
-
-```yaml
-      - name: Run Iara Code Review
-        uses: felipefernandes/iara@main
-        with:
-          provider: gemini
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          model: "gemini-2.5-flash"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-A Iara vai automaticamente:
-
-- Revisar o diff do Pull Request
-- Postar um comentário com o resultado da review
-
-### Todos os inputs disponíveis
-
-```yaml
-- uses: felipefernandes/iara@main
-  with:
-    provider: "openrouter"                         # openrouter (padrão), openai, gemini, anthropic
-    openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}  # quando provider=openrouter
-    openai_api_key: ${{ secrets.OPENAI_API_KEY }}          # quando provider=openai
-    gemini_api_key: ${{ secrets.GEMINI_API_KEY }}          # quando provider=gemini
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}    # quando provider=anthropic
-    model: "google/gemini-2.0-flash-exp:free"     # forçar modelo
-    config_path: ".iara.json"                     # caminho do config (padrão: .iara.json)
-    post_comment: "true"                           # postar comentário no PR (padrão: true)
-    language: "pt-br"                              # idioma da review
-    index_codebase: "true"                         # habilitar memória RAG (padrão: false)
-```
-
----
-
-## 🦊 Integração GitLab
-
-### 1. Configurar variáveis
-
-Vá em **Settings > CI/CD > Variables** e adicione:
-
-- A chave do seu provedor (ex: `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
-- `IARA_PROVIDER`: nome do provedor (ex: `anthropic`) — omita para usar OpenRouter por padrão
-- `GITLAB_TOKEN`: Personal/Project Access Token com scope `api` (necessário para comentários no MR)
-
-### 2. Adicionar ao `.gitlab-ci.yml`
-
-```yaml
-stages:
-  - review
-
-iara_code_review:
-  stage: review
-  image: python:3.11-slim
-  script:
-    - apt-get update && apt-get install -y --no-install-recommends git curl
-    - pip install iara-reviewer
-    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
-    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
-    - echo "$REVIEW"
-    - |
-      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
-        PAYLOAD=$(python3 -c "
-      import sys, json
-      review = '''$REVIEW'''
-      body = '## 🧜‍♀️ Iara Code Review\n\n' + review + '\n\n---\n*Reviewed by Iara - AI Code Reviewer*'
-      print(json.dumps({'body': body}))
-      ")
-        curl -s -X POST \
-          -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "$PAYLOAD" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"
-      fi
-  allow_failure: true
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-```
-
-A Iara vai automaticamente:
-
-- Revisar o diff do Merge Request
-- Postar um comentário com o resultado da review no MR
-
-Um template completo está disponível em `gitlab-ci.yml`.
-
----
-
-## 🔧 Qualquer CI (Jenkins, CircleCI, etc.)
-
-```bash
-pip install iara-reviewer
-
-# OpenRouter (padrão)
-export OPENROUTER_API_KEY="sk-or-..."
-git diff main...HEAD | iara
-
-# Anthropic Claude
-export IARA_PROVIDER="anthropic"
-export ANTHROPIC_API_KEY="sk-ant-..."
-export IARA_MODEL="claude-sonnet-4-5-20250929"
-git diff main...HEAD | iara
-```
+- [GitHub Marketplace](https://github.com/marketplace/actions/iara-code-reviewer) - Adicione Iara ao seu repositório
+- [Pacote PyPI](https://pypi.org/project/iara-reviewer/) - Instale via pip
+- [Changelog](CHANGELOG.md) - Histórico de versões e notas de release
 
 ---
 
@@ -417,6 +209,20 @@ git diff main...HEAD | iara
 ```bash
 python -m unittest discover tests
 ```
+
+---
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Veja nosso [Guia de Contribuição](CONTRIBUTING.md) para:
+
+- Setup de desenvolvimento
+- Executando testes
+- Padrões de qualidade de código
+- Diretrizes para pull requests
+- Processo de release
+
+---
 
 ## 📜 Licença
 
