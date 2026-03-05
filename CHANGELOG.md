@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### 📚 Documentation
+
+- Reorganized documentation structure for better navigation
+- Created dedicated `docs/` folder with technical guides
+- Added `docs/configuration.md` - comprehensive configuration guide
+- Added `docs/ci-integration.md` - CI/CD integration for all platforms
+- Created `CONTRIBUTING.md` - bilingual developer guide (PT/EN)
+- Reduced README files to ~200 lines (landing page focus)
+- Added Table of Contents to both README files
+- Organized example files into `examples/` folder (iara-example.json, iara-example-inline.json, gitlab-ci.yml)
+- Updated all documentation references to new file paths
+
+---
+
 ## [1.7.2] - 2026-03-05
 
 ### 🎉 Major Features
