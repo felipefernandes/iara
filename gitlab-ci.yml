@@ -10,11 +10,9 @@ stages:
 
 iara_code_review:
   stage: review
-  image: python:3.11-slim
+  # 🐳 Usa imagem Docker pre-construida para execucao rapida (sem pip install)
+  image: ghcr.io/felipefernandes/iara:latest
   script:
-    - apt-get update && apt-get install -y --no-install-recommends git curl
-    - pip install iara-reviewer
-
     # Gera o diff do Merge Request
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
     - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
@@ -24,27 +22,18 @@ iara_code_review:
     - cat /tmp/iara_stderr.txt || true
     - echo "$REVIEW"
 
-    # Posta comentario no Merge Request via GitLab API
+    # Posta comentario no Merge Request usando o novo post_comment module
     - |
       if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
         echo "Postando review no MR #${CI_MERGE_REQUEST_IID}..."
-        PAYLOAD=$(python3 -c "
-      import sys, json
-      review = '''$REVIEW'''
-      body = '## 🧜‍♀️ Iara Code Review\n\n' + review + '\n\n---\n*Reviewed by [Iara](https://github.com/felipefernandes/iara) - AI Code Reviewer*'
-      print(json.dumps({'body': body}))
-      ")
-        HTTP_CODE=$(curl -s -o /tmp/gl_response.txt -w "%{http_code}" \
-          -X POST \
-          -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "$PAYLOAD" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes")
-        if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+        echo "$REVIEW" | python3 -m iara.post_comment \
+          --token "$GITLAB_TOKEN" \
+          --repo "$CI_PROJECT_PATH" \
+          --pr "$CI_MERGE_REQUEST_IID"
+        if [ $? -eq 0 ]; then
           echo "Review postada com sucesso no MR #${CI_MERGE_REQUEST_IID}."
         else
-          echo "Falha ao postar comentario (HTTP ${HTTP_CODE})"
-          cat /tmp/gl_response.txt
+          echo "Falha ao postar comentario"
         fi
       else
         echo "Comentario no MR desabilitado (GITLAB_TOKEN nao configurado ou review vazia)."

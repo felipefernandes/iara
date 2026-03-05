@@ -462,6 +462,34 @@ Go to **Settings > CI/CD > Variables** and add:
 
 ### 2. Add to `.gitlab-ci.yml`
 
+**Using the pre-built Docker image (faster, recommended):**
+
+```yaml
+stages:
+  - review
+
+iara_code_review:
+  stage: review
+  image: ghcr.io/felipefernandes/iara:latest
+  script:
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
+    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
+    - echo "$REVIEW"
+    - |
+      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
+        echo "$REVIEW" | python3 -m iara.post_comment \
+          --token "$GITLAB_TOKEN" \
+          --repo "$CI_PROJECT_PATH" \
+          --pr "$CI_MERGE_REQUEST_IID"
+      fi
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+```
+
+**Alternative: Using pip install (slower):**
+
 ```yaml
 stages:
   - review
@@ -474,22 +502,7 @@ iara_code_review:
     - pip install iara-reviewer
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
     - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
-    - echo "$REVIEW"
-    - |
-      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
-        PAYLOAD=$(python3 -c "
-      import sys, json
-      review = '''$REVIEW'''
-      body = '## 🧜‍♀️ Iara Code Review\n\n' + review + '\n\n---\n*Reviewed by Iara - AI Code Reviewer*'
-      print(json.dumps({'body': body}))
-      ")
-        curl -s -X POST \
-          -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "$PAYLOAD" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"
-      fi
+    - iara
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
