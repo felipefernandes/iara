@@ -504,6 +504,107 @@ A complete template is available at `gitlab-ci.yml`.
 
 ---
 
+## 🐳 Docker Image (Pre-built)
+
+Iara is available as a pre-built Docker image on **GitHub Container Registry (GHCR)**, which significantly speeds up CI/CD execution by eliminating dependency installation time.
+
+**Image:** `ghcr.io/felipefernandes/iara-bot-reviewer:latest`
+
+### Why use the Docker image?
+
+- ⚡ **Faster startup**: Skip `pip install` overhead — image pulls in seconds
+- 📦 **All dependencies included**: Python 3.11, RAG dependencies, git, curl, jq
+- 🔄 **Portable**: Works across GitHub Actions, GitLab CI, Jenkins, Bitbucket Pipelines, and more
+- 🔒 **Consistent environment**: Same runtime environment on every platform
+
+### Usage in GitHub Actions
+
+The GitHub Action (`felipefernandes/iara@main`) **already uses this Docker image** automatically. No additional configuration needed!
+
+If you want to use the Docker image directly:
+
+```yaml
+name: Iara Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/felipefernandes/iara-bot-reviewer:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Iara Review
+        run: |
+          export PR_DIFF=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}")
+          iara | python3 -m iara.post_comment \
+            --token "$GITHUB_TOKEN" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pr "${{ github.event.pull_request.number }}"
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Usage in GitLab CI
+
+```yaml
+stages:
+  - review
+
+iara_code_review:
+  stage: review
+  image: ghcr.io/felipefernandes/iara-bot-reviewer:latest
+  script:
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
+    - REVIEW=$(iara) || true
+    - echo "$REVIEW"
+    - echo "$REVIEW" | python3 -m iara.post_comment --token "$GITLAB_TOKEN" --repo "$CI_PROJECT_PATH" --pr "$CI_MERGE_REQUEST_IID"
+  only:
+    - merge_requests
+  variables:
+    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    GITLAB_TOKEN: ${GITLAB_TOKEN}
+```
+
+### Usage in Jenkins, CircleCI, or Any Docker-enabled CI
+
+```bash
+docker run --rm \
+  -e OPENROUTER_API_KEY="sk-or-..." \
+  -e PR_DIFF="$(git diff main...HEAD)" \
+  ghcr.io/felipefernandes/iara-bot-reviewer:latest
+```
+
+### Local Testing
+
+You can test the Docker image locally before deploying to CI:
+
+```bash
+# Pull the image
+docker pull ghcr.io/felipefernandes/iara-bot-reviewer:latest
+
+# Run a review
+docker run --rm \
+  -e OPENROUTER_API_KEY="sk-or-..." \
+  -e PR_DIFF="$(git diff main)" \
+  ghcr.io/felipefernandes/iara-bot-reviewer:latest
+```
+
+---
+
 ## 🔧 Any CI (Jenkins, CircleCI, etc.)
 
 ```bash

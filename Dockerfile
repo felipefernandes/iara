@@ -1,15 +1,13 @@
 # =============================================================================
-# NOTE: This Dockerfile is NOT used by the GitHub Action anymore.
-# The Action now uses a Composite Action (runs: using: 'composite') for
-# better performance and pip caching. See action.yml for details.
+# Iara AI Code Reviewer - Production Docker Image
 #
-# This Dockerfile is kept for:
-#   - Local development and testing
-#   - Docker Hub distribution
-#   - Self-hosted runner setups that prefer containers
+# This image is published to GitHub Container Registry (GHCR) and used by
+# the GitHub Action to provide fast PR reviews without dependency installation.
+#
+# Published at: ghcr.io/felipefernandes/iara:latest
 # =============================================================================
 
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 LABEL maintainer="Felipe Fernandes"
 LABEL description="Iara AI Code Reviewer"
