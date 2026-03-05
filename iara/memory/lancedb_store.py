@@ -43,6 +43,38 @@ class LanceDBMemory(MemoryInterface):
         self._ensure_initialized()
         return self.encoder.encode(texts).tolist()
 
+    def _rrf_merge(self, vec_results: List[dict], fts_results: List[dict], k: int = 60) -> List[dict]:
+        """
+        Merge two ranked result lists using Reciprocal Rank Fusion (RRF).
+
+        Args:
+            vec_results: Results from vector search (ranked list)
+            fts_results: Results from FTS search (ranked list)
+            k: RRF constant (default 60 from literature)
+
+        Returns:
+            Unified list sorted by combined RRF score (descending)
+        """
+        scores = {}
+
+        # Calculate RRF scores from vector search ranking
+        for rank, item in enumerate(vec_results):
+            item_id = item["id"]
+            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
+
+        # Calculate RRF scores from FTS search ranking
+        for rank, item in enumerate(fts_results):
+            item_id = item["id"]
+            scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
+
+        # Build lookup map of all unique items
+        all_items = {item["id"]: item for item in vec_results + fts_results}
+
+        # Sort by RRF score (descending)
+        sorted_ids = sorted(scores, key=scores.get, reverse=True)
+
+        return [all_items[item_id] for item_id in sorted_ids]
+
     def index_chunks(self, chunks: List[CodeChunk]):
         if not chunks:
             return
@@ -69,8 +101,13 @@ class LanceDBMemory(MemoryInterface):
             table = self.db.open_table(self.table_name)
             table.add(data)
         else:
-            self.db.create_table(self.table_name, data)
-        
+            table = self.db.create_table(self.table_name, data)
+            try:
+                table.create_fts_index("content")
+                logger.info("Created FTS index on 'content' field.")
+            except Exception as e:
+                logger.warning(f"Failed to create FTS index (will fall back to vector-only search): {e}")
+
         logger.info(f"Indexed {len(chunks)} chunks into LanceDB.")
 
     def retrieve(self, query: str, n_results: int = 5) -> List[CodeChunk]:
@@ -80,9 +117,28 @@ class LanceDBMemory(MemoryInterface):
 
         query_vector = self._embed([query])[0]
         table = self.db.open_table(self.table_name)
-        
-        results = table.search(query_vector).limit(n_results).to_list()
-        
+
+        # Vector search (always works) - fetch 2x for better RRF fusion
+        vec_results = table.search(query_vector).limit(n_results * 2).to_list()
+
+        # Try hybrid search with FTS, fall back to vector-only if FTS unavailable
+        try:
+            # FTS search - fetch 2x for better RRF fusion
+            fts_results = table.search(query, query_type="fts").limit(n_results * 2).to_list()
+
+            # Merge using RRF and truncate to requested limit
+            results = self._rrf_merge(vec_results, fts_results)[:n_results]
+
+            logger.debug(
+                f"Hybrid search: {len(vec_results)} vec + {len(fts_results)} fts "
+                f"→ {len(results)} merged (RRF)"
+            )
+        except Exception as e:
+            # Graceful fallback to vector-only search
+            logger.warning(f"FTS search failed, falling back to vector-only: {e}")
+            results = vec_results[:n_results]
+
+        # Convert to CodeChunk objects
         chunks = []
         for r in results:
             chunks.append(CodeChunk(
@@ -94,7 +150,7 @@ class LanceDBMemory(MemoryInterface):
                 type=r["type"],
                 metadata=r["metadata"]
             ))
-            
+
         return chunks
 
     def clear(self):

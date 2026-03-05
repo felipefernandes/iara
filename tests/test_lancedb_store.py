@@ -225,4 +225,344 @@ class TestLanceDBMemory(unittest.TestCase):
 
         mock_logger.warning.assert_called()
 
+    def test_rrf_merge_identical_rankings(self):
+        """RRF should preserve order when both rankings are identical."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = [
+            {"id": "A", "content": "A"},
+            {"id": "B", "content": "B"},
+            {"id": "C", "content": "C"}
+        ]
+        fts_results = [
+            {"id": "A", "content": "A"},
+            {"id": "B", "content": "B"},
+            {"id": "C", "content": "C"}
+        ]
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # Should maintain order A, B, C (all boosted equally)
+        self.assertEqual([r["id"] for r in merged], ["A", "B", "C"])
+        # No duplicates
+        self.assertEqual(len(merged), 3)
+
+    def test_rrf_merge_disjoint_rankings(self):
+        """RRF should interleave when rankings have no overlap."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = [
+            {"id": "A", "content": "A"},
+            {"id": "B", "content": "B"},
+            {"id": "C", "content": "C"}
+        ]
+        fts_results = [
+            {"id": "D", "content": "D"},
+            {"id": "E", "content": "E"},
+            {"id": "F", "content": "F"}
+        ]
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # All 6 items should be present
+        self.assertEqual(len(merged), 6)
+        # Items should be ordered by RRF score
+        merged_ids = [r["id"] for r in merged]
+        # A and D should rank highest (both rank 0 in their lists)
+        self.assertIn("A", merged_ids[:2])
+        self.assertIn("D", merged_ids[:2])
+
+    def test_rrf_merge_overlapping_rankings(self):
+        """RRF should boost items appearing in both rankings."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = [
+            {"id": "A", "content": "A"},
+            {"id": "B", "content": "B"},
+            {"id": "C", "content": "C"},
+            {"id": "D", "content": "D"}
+        ]
+        fts_results = [
+            {"id": "B", "content": "B"},  # Also in vec at rank 1
+            {"id": "A", "content": "A"},  # Also in vec at rank 0
+            {"id": "E", "content": "E"},
+            {"id": "F", "content": "F"}
+        ]
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # A and B appear in both lists → should rank highest
+        merged_ids = [r["id"] for r in merged]
+        self.assertIn("A", merged_ids[:2])
+        self.assertIn("B", merged_ids[:2])
+
+        # Should have 6 unique items (A, B, C, D, E, F)
+        self.assertEqual(len(merged), 6)
+
+    def test_rrf_merge_empty_vector_results(self):
+        """RRF should handle empty vector results gracefully."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = []
+        fts_results = [
+            {"id": "A", "content": "A"},
+            {"id": "B", "content": "B"}
+        ]
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # Should return FTS results only
+        self.assertEqual(len(merged), 2)
+        self.assertEqual([r["id"] for r in merged], ["A", "B"])
+
+    def test_rrf_merge_empty_fts_results(self):
+        """RRF should handle empty FTS results gracefully."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = [
+            {"id": "A", "content": "A"},
+            {"id": "B", "content": "B"}
+        ]
+        fts_results = []
+
+        merged = memory._rrf_merge(vec_results, fts_results)
+
+        # Should return vector results only
+        self.assertEqual(len(merged), 2)
+        self.assertEqual([r["id"] for r in merged], ["A", "B"])
+
+    def test_rrf_merge_both_empty(self):
+        """RRF should handle both inputs empty."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        merged = memory._rrf_merge([], [])
+
+        self.assertEqual(merged, [])
+
+    def test_rrf_merge_k_parameter(self):
+        """RRF should use custom k parameter correctly."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+
+        vec_results = [{"id": "A", "content": "A"}]
+        fts_results = [{"id": "B", "content": "B"}]
+
+        # With different k values, relative scores change
+        # But output should still be valid and ordered
+        merged_k10 = memory._rrf_merge(vec_results, fts_results, k=10)
+        merged_k100 = memory._rrf_merge(vec_results, fts_results, k=100)
+
+        # Both should have same items
+        self.assertEqual(len(merged_k10), 2)
+        self.assertEqual(len(merged_k100), 2)
+
+        # Order might differ based on k, but both valid
+        ids_k10 = {r["id"] for r in merged_k10}
+        ids_k100 = {r["id"] for r in merged_k100}
+        self.assertEqual(ids_k10, {"A", "B"})
+        self.assertEqual(ids_k100, {"A", "B"})
+
+    def test_hybrid_search_both_searches_called(self):
+        """Hybrid search should call both vector and FTS searches."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        memory._embed = MagicMock(return_value=[[0.1, 0.2]])
+
+        # Mock table with both search modes
+        mock_table = MagicMock()
+        memory.db.open_table.return_value = mock_table
+
+        # Mock vector search results (chain: search().limit().to_list())
+        vec_chain = MagicMock()
+        vec_chain.to_list.return_value = [
+            {"id": "1", "content": "vec1", "file_path": "f", "start_line": 1, "end_line": 1, "type": "text", "metadata": {}}
+        ]
+
+        # Mock FTS search results (chain: search().limit().to_list())
+        fts_chain = MagicMock()
+        fts_chain.to_list.return_value = [
+            {"id": "2", "content": "fts1", "file_path": "f", "start_line": 2, "end_line": 2, "type": "text", "metadata": {}}
+        ]
+
+        # Configure mock to return different results for vector vs FTS
+        def search_side_effect(*args, **kwargs):
+            if kwargs.get("query_type") == "fts":
+                mock_fts_search = MagicMock()
+                mock_fts_search.limit.return_value = fts_chain
+                return mock_fts_search
+            else:
+                mock_vec_search = MagicMock()
+                mock_vec_search.limit.return_value = vec_chain
+                return mock_vec_search
+
+        mock_table.search.side_effect = search_side_effect
+
+        results = memory.retrieve("test query", n_results=5)
+
+        # Both searches should have been called
+        self.assertEqual(mock_table.search.call_count, 2)
+
+        # Should get results from both (RRF merged)
+        self.assertGreaterEqual(len(results), 1)
+
+    def test_hybrid_search_fts_fallback(self):
+        """Hybrid search should fall back to vector-only when FTS fails."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        memory._embed = MagicMock(return_value=[[0.1, 0.2]])
+
+        # Mock table
+        mock_table = MagicMock()
+        memory.db.open_table.return_value = mock_table
+
+        # Mock vector search success (chain: search().limit().to_list())
+        vec_chain = MagicMock()
+        vec_chain.to_list.return_value = [
+            {"id": "1", "content": "vec1", "file_path": "f", "start_line": 1, "end_line": 1, "type": "text", "metadata": {}}
+        ]
+
+        # Mock FTS search failure
+        def search_side_effect(*args, **kwargs):
+            if kwargs.get("query_type") == "fts":
+                raise Exception("FTS index not found")
+            else:
+                mock_vec_search = MagicMock()
+                mock_vec_search.limit.return_value = vec_chain
+                return mock_vec_search
+
+        mock_table.search.side_effect = search_side_effect
+
+        with patch('iara.memory.lancedb_store.logger') as mock_logger:
+            results = memory.retrieve("test query", n_results=5)
+
+            # Should log warning about fallback
+            mock_logger.warning.assert_called()
+            warning_msg = mock_logger.warning.call_args[0][0]
+            self.assertIn("FTS search failed", warning_msg)
+            self.assertIn("falling back to vector-only", warning_msg)
+
+        # Should still return results (from vector search)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, "1")
+
+    def test_hybrid_search_combines_results(self):
+        """Hybrid search should combine results from both searches using RRF."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        memory._embed = MagicMock(return_value=[[0.1, 0.2]])
+
+        # Mock table
+        mock_table = MagicMock()
+        memory.db.open_table.return_value = mock_table
+
+        # Mock vector search returns items A, B (chain: search().limit().to_list())
+        vec_chain = MagicMock()
+        vec_chain.to_list.return_value = [
+            {"id": "A", "content": "vecA", "file_path": "f", "start_line": 1, "end_line": 1, "type": "text", "metadata": {}},
+            {"id": "B", "content": "vecB", "file_path": "f", "start_line": 2, "end_line": 2, "type": "text", "metadata": {}}
+        ]
+
+        # Mock FTS search returns items B, C (chain: search().limit().to_list())
+        fts_chain = MagicMock()
+        fts_chain.to_list.return_value = [
+            {"id": "B", "content": "ftsB", "file_path": "f", "start_line": 2, "end_line": 2, "type": "text", "metadata": {}},
+            {"id": "C", "content": "ftsC", "file_path": "f", "start_line": 3, "end_line": 3, "type": "text", "metadata": {}}
+        ]
+
+        def search_side_effect(*args, **kwargs):
+            if kwargs.get("query_type") == "fts":
+                mock_fts_search = MagicMock()
+                mock_fts_search.limit.return_value = fts_chain
+                return mock_fts_search
+            else:
+                mock_vec_search = MagicMock()
+                mock_vec_search.limit.return_value = vec_chain
+                return mock_vec_search
+
+        mock_table.search.side_effect = search_side_effect
+
+        results = memory.retrieve("test query", n_results=5)
+
+        # Should have 3 unique items (A, B, C)
+        result_ids = {r.id for r in results}
+        self.assertEqual(result_ids, {"A", "B", "C"})
+
+        # Item B appears in both → should rank higher due to RRF
+        # (This is tested by the RRF algorithm tests, here we just verify it's combined)
+
+    def test_hybrid_search_respects_limit(self):
+        """Hybrid search should respect n_results limit after RRF merge."""
+        from iara.memory.lancedb_store import LanceDBMemory
+
+        memory = LanceDBMemory()
+        memory._ensure_initialized()
+        memory.db = MagicMock()
+        memory.db.table_names.return_value = ["code_chunks"]
+        memory._embed = MagicMock(return_value=[[0.1, 0.2]])
+
+        # Mock table
+        mock_table = MagicMock()
+        memory.db.open_table.return_value = mock_table
+
+        # Mock vector search returns 5 items
+        vec_items = [
+            {"id": f"V{i}", "content": f"vec{i}", "file_path": "f", "start_line": i, "end_line": i, "type": "text", "metadata": {}}
+            for i in range(5)
+        ]
+
+        # Mock FTS search returns 5 different items
+        fts_items = [
+            {"id": f"F{i}", "content": f"fts{i}", "file_path": "f", "start_line": i+10, "end_line": i+10, "type": "text", "metadata": {}}
+            for i in range(5)
+        ]
+
+        vec_chain = MagicMock()
+        vec_chain.to_list.return_value = vec_items
+
+        fts_chain = MagicMock()
+        fts_chain.to_list.return_value = fts_items
+
+        def search_side_effect(*args, **kwargs):
+            if kwargs.get("query_type") == "fts":
+                mock_fts_search = MagicMock()
+                mock_fts_search.limit.return_value = fts_chain
+                return mock_fts_search
+            else:
+                mock_vec_search = MagicMock()
+                mock_vec_search.limit.return_value = vec_chain
+                return mock_vec_search
+
+        mock_table.search.side_effect = search_side_effect
+
+        # Request only 3 results
+        results = memory.retrieve("test query", n_results=3)
+
+        # Should return exactly 3 results (even though 10 were available)
+        self.assertEqual(len(results), 3)
+
 
