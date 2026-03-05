@@ -1,0 +1,123 @@
+# Changelog
+
+All notable changes to Iara Code Reviewer will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [1.7.2] - 2026-03-05
+
+### 🎉 Major Features
+
+#### Inline PR Comments (GitHub & GitLab)
+Post code review comments directly on specific lines of code, just like CodeClimate, SonarCloud, or human reviewers!
+
+**What's new:**
+- 💬 **Inline comments** anchored to specific code lines in PR diffs
+- 🏗️ **Platform adapters** for GitHub (PR Review Comments API) and GitLab (MR Discussions API)
+- 🎯 **Structured JSON output** from LLM with severity classification (🐛 bug, 🔒 security, ⚡ performance, ✨ style, 💡 other)
+- 🔄 **Graceful fallback** to summary mode if inline posting fails
+- ✅ **100% backward compatible** - existing configs work unchanged
+
+**How to enable:**
+```json
+{
+  "ci": {
+    "platform": "github",
+    "review_mode": "inline"
+  }
+}
+```
+
+**GitHub Actions permissions:**
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+```
+
+### 🐛 Bug Fixes
+- Fixed backward compatibility when no `ci` platform is configured (auto-infers GitHub from environment)
+- Fixed case-sensitive severity validation (now accepts "Bug", "SECURITY", "performance", etc.)
+
+### 📚 Documentation
+- Added comprehensive inline mode documentation to README
+- Created `iara-example-inline.json` config example
+- Documented platform requirements and permissions
+
+### 🧪 Testing
+- Added 40+ new unit tests for inline comments feature
+- All 223 tests passing with improved coverage
+
+**Supported Platforms:**
+- ✅ GitHub Actions
+- ✅ GitLab CI
+- ⏳ Bitbucket, Azure DevOps (coming soon)
+
+---
+
+## [1.7.1] - 2026-03-04
+
+### 🧠 Memory Enhancements
+
+#### Hybrid RAG Search with Reciprocal Rank Fusion
+- Implemented hybrid search combining vector similarity + full-text search (FTS)
+- Uses Reciprocal Rank Fusion (RRF) algorithm to merge results intelligently
+- Items appearing in both searches get boosted rankings
+- Graceful fallback to vector-only search if FTS index unavailable
+
+### 🔧 Improvements
+- Better FTS monitoring with clear warning messages
+- Schema validation for memory store
+- Improved RRF formula implementation (1/(k+rank+1))
+
+---
+
+## [1.7.0] - 2026-02-20
+
+### 🚀 Major Features
+
+#### Smart Chunking for Code Indexing
+- Language-aware chunking for Python, JavaScript/TypeScript, and C#
+- Extracts complete logical units (functions, classes, methods)
+- Prevents cutting functions in half for better LLM context
+- Fallback to plain-text chunking for unsupported languages
+
+#### Intelligent Diff Compression
+- Automatically compresses large PR diffs to fit token limits
+- Smart prioritization: keeps added/removed lines, reduces context
+- Configurable via `max_diff_tokens` in `.iara.json`
+- Prevents "diff too large" errors in massive PRs
+
+### 🐛 Bug Fixes
+- Fixed smart chunking edge cases (escape chars, unbalanced braces)
+- Improved diff compressor robustness and validation
+
+---
+
+## Earlier Versions
+
+For changes prior to v1.7.0, see the [commit history](https://github.com/felipefernandes/iara/commits/main).
+
+---
+
+## Contributing
+
+Found a bug or have a feature request? [Open an issue](https://github.com/felipefernandes/iara/issues) or submit a PR!
+
+**Contributors:**
+- Felipe Fernandes ([@felipefernandes](https://github.com/felipefernandes))
+- Claude Sonnet 4.5 (AI pair programmer)
+
+---
+
+**Legend:**
+- 🎉 Major features
+- ✨ New features
+- 🐛 Bug fixes
+- 🔧 Improvements
+- 📚 Documentation
+- 🧪 Testing
+- ⚠️ Breaking changes (we avoid these!)
