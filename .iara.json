@@ -21,6 +21,10 @@
     ],
     "max_diff_tokens": 12000
   },
+  "ci": {
+    "platform": "github",
+    "review_mode": "inline"
+  },
   "model": {
     "preferred": null,
     "fallback_enabled": true
