@@ -2,6 +2,9 @@
 
 import re
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DiffCompressor:
@@ -16,7 +19,21 @@ class DiffCompressor:
 
         Args:
             max_diff_tokens: Maximum number of characters allowed in the diff
+
+        Raises:
+            ValueError: If max_diff_tokens is not a positive integer
         """
+        # Validate and convert max_diff_tokens to int
+        try:
+            max_diff_tokens = int(max_diff_tokens)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"max_diff_tokens must be a positive integer, got {type(max_diff_tokens).__name__}"
+            )
+
+        if max_diff_tokens <= 0:
+            raise ValueError(f"max_diff_tokens must be positive, got {max_diff_tokens}")
+
         self.max_diff_tokens = max_diff_tokens
 
     def compress(self, diff: str) -> str:
@@ -45,11 +62,12 @@ class DiffCompressor:
         reduction_pct = int((1 - compressed_size / original_size) * 100) if original_size > 0 else 0
 
         # Log compression statistics
-        print(
+        msg = (
             f"🗜️  Diff compressed: {self._format_size(original_size)} → "
-            f"{self._format_size(compressed_size)} ({reduction_pct}% reduction)",
-            file=sys.stderr
+            f"{self._format_size(compressed_size)} ({reduction_pct}% reduction)"
         )
+        logger.info(msg)
+        print(msg, file=sys.stderr)
 
         return compressed_diff
 
@@ -65,19 +83,28 @@ class DiffCompressor:
         """
         files = []
 
-        # Split by "diff --git" markers
-        file_blocks = re.split(r'(diff --git .*?)\n', diff)
+        # Find all "diff --git" markers and their positions
+        matches = list(re.finditer(r'^diff --git .+$', diff, re.MULTILINE))
 
-        # Re-combine headers with their content
-        i = 1
-        while i < len(file_blocks):
-            if i + 1 < len(file_blocks):
-                header = file_blocks[i]
-                content = file_blocks[i + 1]
-                files.append((header, content))
-                i += 2
+        if not matches:
+            # No diff markers found, return empty list
+            return files
+
+        for i, match in enumerate(matches):
+            # Extract the header line
+            header = match.group(0)
+
+            # Determine content: from end of this header to start of next header (or EOF)
+            start_pos = match.end() + 1  # +1 to skip the newline after header
+            if i + 1 < len(matches):
+                end_pos = matches[i + 1].start()
             else:
-                i += 1
+                end_pos = len(diff)
+
+            # Extract content between this header and the next
+            content = diff[start_pos:end_pos].rstrip('\n')
+
+            files.append((header, content))
 
         return files
 

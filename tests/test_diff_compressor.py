@@ -10,6 +10,29 @@ class TestDiffCompressor(unittest.TestCase):
         """Set up test fixtures."""
         self.compressor = DiffCompressor(max_diff_tokens=500)
 
+    def test_init_with_invalid_type(self):
+        """Test that initializing with invalid type raises ValueError."""
+        with self.assertRaises(ValueError) as ctx:
+            DiffCompressor(max_diff_tokens="not_a_number")
+        self.assertIn("must be a positive integer", str(ctx.exception))
+
+    def test_init_with_negative_value(self):
+        """Test that initializing with negative value raises ValueError."""
+        with self.assertRaises(ValueError) as ctx:
+            DiffCompressor(max_diff_tokens=-100)
+        self.assertIn("must be positive", str(ctx.exception))
+
+    def test_init_with_zero(self):
+        """Test that initializing with zero raises ValueError."""
+        with self.assertRaises(ValueError) as ctx:
+            DiffCompressor(max_diff_tokens=0)
+        self.assertIn("must be positive", str(ctx.exception))
+
+    def test_init_with_string_number(self):
+        """Test that string numbers are converted to int."""
+        compressor = DiffCompressor(max_diff_tokens="5000")
+        self.assertEqual(compressor.max_diff_tokens, 5000)
+
     def test_small_diff_untouched(self):
         """Test that small diffs are returned unchanged."""
         small_diff = """diff --git a/file.py b/file.py
@@ -223,6 +246,26 @@ diff --git a/file2.py b/file2.py
         # Should be truncated
         self.assertLessEqual(len(result), 150)  # Allow some buffer
         self.assertIn("[... diff still too large, truncated ...]", result)
+
+    def test_parse_diff_with_no_trailing_newline(self):
+        """Test parsing diff that doesn't end with newline."""
+        diff_no_newline = "diff --git a/file.py b/file.py\n--- a/file.py\n+++ b/file.py\n+new line"
+        files = self.compressor._parse_diff_files(diff_no_newline)
+
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0][0], "diff --git a/file.py b/file.py")
+        self.assertIn("+new line", files[0][1])
+
+    def test_parse_empty_diff(self):
+        """Test parsing an empty diff string."""
+        files = self.compressor._parse_diff_files("")
+        self.assertEqual(len(files), 0)
+
+    def test_parse_diff_with_no_markers(self):
+        """Test parsing a string with no diff markers."""
+        no_markers = "This is not a diff\nJust random text"
+        files = self.compressor._parse_diff_files(no_markers)
+        self.assertEqual(len(files), 0)
 
 
 if __name__ == '__main__':

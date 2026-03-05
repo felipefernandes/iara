@@ -139,8 +139,13 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
 
     # Compress diff if necessary
     max_diff_tokens = config.get("review", {}).get("max_diff_tokens", 12000)
-    compressor = DiffCompressor(max_diff_tokens=max_diff_tokens)
-    diff = compressor.compress(diff)
+    try:
+        compressor = DiffCompressor(max_diff_tokens=max_diff_tokens)
+        diff = compressor.compress(diff)
+    except ValueError as e:
+        print(f"⚠️  Invalid max_diff_tokens config: {e}. Using default 12000.", file=sys.stderr)
+        compressor = DiffCompressor(max_diff_tokens=12000)
+        diff = compressor.compress(diff)
 
     # RAG: Retrieve context if available
     context_text = ""
