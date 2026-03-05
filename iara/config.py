@@ -14,7 +14,8 @@ DEFAULT_CONFIG = {
     "review": {
         "focus_areas": ["Logic", "Security", "Performance"],
         "ignore_patterns": [],
-        "max_index_file_size": 1048576
+        "max_index_file_size": 1048576,
+        "max_diff_tokens": 12000
     },
     "model": {
         "preferred": None,
