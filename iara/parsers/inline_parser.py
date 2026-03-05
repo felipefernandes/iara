@@ -90,8 +90,8 @@ def parse_inline_review(text: str) -> Dict[str, Any]:
                 f"Comment [{i}] field 'message' must be string, got {type(comment['message']).__name__}"
             )
 
-        # Validate severity value
-        if comment["severity"] not in VALID_SEVERITIES:
+        # Validate severity value (case-insensitive)
+        if comment["severity"].lower() not in VALID_SEVERITIES:
             raise ValueError(
                 f"Comment [{i}] invalid severity: '{comment['severity']}'. "
                 f"Must be one of: {', '.join(VALID_SEVERITIES)}"

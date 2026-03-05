@@ -46,15 +46,19 @@ def post_review_comments(review_text: str) -> int:
             logger.error("PR_NUMBER environment variable not set")
             return 1
 
-        # Summary mode (default) - always use platform adapter if configured
-        if review_mode == "summary" or platform is None:
-            if platform is None:
-                logger.info("No platform configured, using summary mode")
-                # For now, just output the review (run_iara.sh will handle posting)
-                print(review_text)
-                return 0
+        # Infer platform from environment if not configured
+        if platform is None:
+            # Assume GitHub if running in GitHub Actions (GITHUB_TOKEN present)
+            if token and repo:
+                platform = "github"
+                logger.info("No platform configured, inferring 'github' from environment")
+            else:
+                logger.error("No platform configured and cannot infer from environment")
+                return 1
 
-            logger.info(f"Posting summary comment in {review_mode} mode")
+        # Summary mode (default) - always use platform adapter
+        if review_mode == "summary":
+            logger.info(f"Posting summary comment in summary mode")
             adapter = get_adapter(platform, token, repo, pr_number)
             success = adapter.post_summary_comment(review_text)
 
