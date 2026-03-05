@@ -1,60 +1,29 @@
 # memory-efficiency Specification
 
 ## Purpose
-TBD - created by archiving change optimize-indexer-memory. Update Purpose after archive.
+TBD - created by archiving change compress-large-diffs. Update Purpose after archive.
 ## Requirements
-### Requirement: Configurable Max File Size for Indexing
-The system extracts AST and line blocks as chunks when indexing repository files, but MUST skip parsing very large files completely based on a configurable threshold.
+### Requirement: Intelligent Local Diff Compression
+When a Pull Request diff size is exceedingly large, it MUST be smartly compressed using a local, rule-based approach before being provided to the LLM for review. This prevents hard truncation that causes the LLM to miss files or misinterpret incomplete functions.
 
-#### Scenario: Attempting to index a file that exceeds the default configured maximum size limit
-Given a repository containing a file over the default `max_index_file_size` (1MB).
-When the index runs on the project root path.
-Then the system skips the file completely without allocating memory to read its content.
-And a debug level message is logged about avoiding the oversized file.
+- **Configurability:** A `max_diff_tokens` parameter (default 12000) under the `review` namespace controls the start and target threshold of the compression algorithm.
+- **Prioritization Rule:** The compressor prioritizes file headers (`diff --git`, `@@`) and directly modified lines (`+` and `-`), stripping contextual/unmodified lines when over the size threshold.
+- **Token Optimization Tracking:** Any compression applied must log an informational message indicating original size, compressed size, and the percentage reduced.
 
-#### Scenario: User customizes the limit in .iara.json to allow larger files
-Given a repository containing a 5MB file.
-And the user sets `review.max_index_file_size` to `10000000` (10MB) in `.iara.json`.
-When the index runs on the project root path.
-Then the system successfully reads the 5MB file into memory and indexes its chunks.
+#### Scenario: Submitting a PR diff that fits the limit
+Given a pull request diff containing fewer tokens than the limit
+And the configured limit `review.max_diff_tokens` is 12000
+When the diff is processed by the Reviewer module
+Then the DiffCompressor returns the original diff uncompressed
+And no compression is logged
 
-### Requirement: Eliminate redundant chunks from system prompt
-The retriever MUST apply a similarity-based deduplication filter to retrieved chunks, removing redundant context blocks over a given threshold.
-
-#### Scenario: RAG retrieval fetches duplicative records
-- **Given** a diff query matching multiple redundant modules
-- **When** the `memory.encoder` outputs a matrix comparing `chunk.content`
-- **And** two chunks possess a cosine similarity greater than `memory.dedup_threshold` (default 0.92)
-- **Then** the redundant chunks MUST be discarded
-- **And** a log string MUST be emitted reflecting stats
-
-#### Scenario: Fallback missing encoder
-- **Given** no valid RAG embedding model or missing `encoder` property
-- **When** `_deduplicate_chunks` encounters missing dependencies
-- **Then** all chunks are kept and the deduplication returns no change
-
-### Requirement: Language-Specific Smart Chunking
-The indexer MUST use language-specific strategies (AST or regex) to chunk code accurately by logical boundaries (functions, classes) instead of falling back to raw line chunks prematurely.
-
-#### Scenario: Python chunks using AST
-- **Given** a `.py` file
-- **When** the file is indexed
-- **Then** it is chunked using Python's AST parser to extract functions and classes
-
-#### Scenario: JavaScript and TypeScript chunks using Regex
-- **Given** a `.js` or `.ts` file
-- **When** the file is indexed
-- **Then** it is chunked using Regex to extract functions, classes, and arrow functions
-- **And** the chunks represent complete logical blocks rather than arbitrary lines
-
-#### Scenario: C# chunks using Regex
-- **Given** a `.cs` file
-- **When** the file is indexed
-- **Then** it is chunked using Regex to extract methods and classes
-- **And** the chunks represent complete logical blocks
-
-#### Scenario: Fallback chunking for unsupported languages
-- **Given** a file with an unsupported extension (e.g., `.txt`, `.md`)
-- **When** the file is indexed
-- **Then** it falls back to a plain text chunking strategy of maximum 100 lines per chunk
+#### Scenario: Submitting a PR diff exceeding the limit
+Given a pull request diff of large amounts of characters spanning multiple files
+And the configured limit `review.max_diff_tokens` restricts the payload length
+When the diff is processed by the Reviewer module
+Then the DiffCompressor applies rules to prioritize headers and changed lines
+And strips unmodified lines
+And avoids omitting the end of the PR
+And the logger prints the compression reduction values
+And the smartly compressed diff is successfully sent to the LLM agent
 
