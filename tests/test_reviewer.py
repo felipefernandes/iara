@@ -210,16 +210,23 @@ class TestReviewCodeWithModel(unittest.TestCase):
         self.assertIn("rate limited", str(ctx.exception))
 
     @patch("urllib.request.urlopen")
-    def test_truncates_long_diff(self, mock_urlopen):
+    def test_no_truncation_in_review_code_with_model(self, mock_urlopen):
+        """
+        review_code_with_model no longer truncates diffs.
+        Compression now happens in review_code before calling this function.
+        """
         mock_urlopen.return_value = MockResponse({"choices": [{"message": {"content": "OK"}}]})
         long_diff = "x" * 20000
         content = review_code_with_model(long_diff, "sk-test", "gpt-4o", "sys", "openai")
         self.assertEqual(content, "OK")
-        # Verify the payload sent was truncated
+        # Verify the full diff was sent (no truncation in this function)
         call_args = mock_urlopen.call_args
         sent_data = json.loads(call_args[0][0].data.decode("utf-8"))
         user_msg = sent_data["messages"][1]["content"]
-        self.assertIn("[... diff truncated", user_msg)
+        # Should NOT contain truncation message since that logic was removed
+        self.assertNotIn("[... diff truncated", user_msg)
+        # Should contain the full diff
+        self.assertIn("x" * 100, user_msg)  # Check a portion of the original diff is present
 
 
 # ── review_code (full integration with mocked HTTP) ────────────────────

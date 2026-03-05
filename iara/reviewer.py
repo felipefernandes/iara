@@ -11,6 +11,7 @@ import urllib.error
 from iara.models import PROVIDER_CONFIGS, FREE_MODELS
 from iara.auth import normalize_provider, SUPPORTED_PROVIDERS
 from iara.prompt import generate_system_prompt
+from iara.diff_compressor import DiffCompressor
 
 # Optional RAG imports
 try:
@@ -98,10 +99,6 @@ def _extract_content(result: dict, provider: str) -> str:
 
 def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: str, provider: str) -> str:
     """Try to review code with a specific model."""
-    max_chars = 15000
-    if len(diff) > max_chars:
-        diff = diff[:max_chars] + "\n\n[... diff truncated due to size limit ...]"
-
     provider_cfg = PROVIDER_CONFIGS.get(provider, PROVIDER_CONFIGS["openrouter"])
     payload = _build_payload(diff, model, system_prompt, provider)
     headers = _build_headers(api_key, provider)
@@ -139,6 +136,11 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
 
     if not diff.strip():
         return "✅ No code changes to review."
+
+    # Compress diff if necessary
+    max_diff_tokens = config.get("review", {}).get("max_diff_tokens", 12000)
+    compressor = DiffCompressor(max_diff_tokens=max_diff_tokens)
+    diff = compressor.compress(diff)
 
     # RAG: Retrieve context if available
     context_text = ""

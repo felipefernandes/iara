@@ -18,7 +18,8 @@
     "ignore_patterns": [
       ".assets",
       "openspec"
-    ]
+    ],
+    "max_diff_tokens": 12000
   },
   "model": {
     "preferred": null,
