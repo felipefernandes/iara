@@ -4,7 +4,7 @@ import os
 import tempfile
 from unittest.mock import patch
 
-from iara.config import load_config, DEFAULT_CONFIG
+from iara.config import load_config, DEFAULT_CONFIG, validate_ci_config
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
@@ -49,6 +49,112 @@ class TestConfig(unittest.TestCase):
 
         config = load_config(self.config_path)
         self.assertEqual(config, DEFAULT_CONFIG)
+
+    def test_ci_config_defaults(self):
+        """Test that CI config has correct defaults."""
+        config = load_config(self.config_path)
+        self.assertIn("ci", config)
+        self.assertEqual(config["ci"]["platform"], None)
+        self.assertEqual(config["ci"]["review_mode"], "summary")
+
+    def test_ci_config_parse_github(self):
+        """Test parsing GitHub platform from config."""
+        custom_config = {
+            "ci": {
+                "platform": "github",
+                "review_mode": "inline"
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        config = load_config(self.config_path)
+        self.assertEqual(config["ci"]["platform"], "github")
+        self.assertEqual(config["ci"]["review_mode"], "inline")
+
+    def test_ci_config_parse_gitlab(self):
+        """Test parsing GitLab platform from config."""
+        custom_config = {
+            "ci": {
+                "platform": "gitlab",
+                "review_mode": "summary"
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        config = load_config(self.config_path)
+        self.assertEqual(config["ci"]["platform"], "gitlab")
+        self.assertEqual(config["ci"]["review_mode"], "summary")
+
+    def test_ci_config_invalid_platform(self):
+        """Test that invalid platform raises ValueError."""
+        custom_config = {
+            "ci": {
+                "platform": "bitbucket"
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        with self.assertRaises(ValueError) as cm:
+            load_config(self.config_path)
+        self.assertIn("Invalid ci.platform", str(cm.exception))
+
+    def test_ci_config_invalid_review_mode(self):
+        """Test that invalid review_mode raises ValueError."""
+        custom_config = {
+            "ci": {
+                "platform": "github",
+                "review_mode": "invalid"
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        with self.assertRaises(ValueError) as cm:
+            load_config(self.config_path)
+        self.assertIn("Invalid ci.review_mode", str(cm.exception))
+
+    def test_ci_config_inline_without_platform(self):
+        """Test that inline mode without platform raises ValueError."""
+        custom_config = {
+            "ci": {
+                "review_mode": "inline"
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        with self.assertRaises(ValueError) as cm:
+            load_config(self.config_path)
+        self.assertIn("inline mode requires ci.platform", str(cm.exception))
+
+    def test_ci_config_platform_without_review_mode(self):
+        """Test that platform without review_mode defaults to summary."""
+        custom_config = {
+            "ci": {
+                "platform": "github"
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        config = load_config(self.config_path)
+        self.assertEqual(config["ci"]["platform"], "github")
+        self.assertEqual(config["ci"]["review_mode"], "summary")
+
+    def test_ci_config_empty_section(self):
+        """Test that empty CI section uses defaults."""
+        custom_config = {
+            "ci": {}
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+
+        config = load_config(self.config_path)
+        self.assertEqual(config["ci"]["platform"], None)
+        self.assertEqual(config["ci"]["review_mode"], "summary")
 
 if __name__ == '__main__':
     unittest.main()

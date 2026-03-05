@@ -228,6 +228,70 @@ iara memory clear
 
 ---
 
+## 💬 Inline PR Comments (Optional) [New]
+
+By default, Iara posts a single summary comment on your Pull Request. For a better developer experience, you can enable **inline comments** that are anchored directly to specific lines of code, similar to how CodeClimate, SonarCloud, or human reviewers comment.
+
+### Supported Platforms
+
+- ✅ **GitHub** — Uses [Pull Request Review Comments API](https://docs.github.com/en/rest/pulls/comments)
+- ✅ **GitLab** — Uses [Merge Request Discussions API](https://docs.gitlab.com/ee/api/discussions.html)
+
+### How to Enable
+
+Add a `ci` section to your `.iara.json` file:
+
+```json
+{
+  "ci": {
+    "platform": "github",
+    "review_mode": "inline"
+  },
+  "project": {
+    "name": "My Project",
+    "...": "..."
+  }
+}
+```
+
+**Configuration Options:**
+
+- **`platform`**: CI platform where Iara will post comments
+  - `"github"` — For GitHub Actions
+  - `"gitlab"` — For GitLab CI
+  - `null` or omitted — No platform specified (default behavior)
+
+- **`review_mode`**: How Iara posts review feedback
+  - `"summary"` — Single comment with all feedback (default)
+  - `"inline"` — Individual comments anchored to specific lines
+
+### Required Permissions
+
+#### GitHub Actions
+Your workflow needs `pull-requests: write` permission:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+```
+
+#### GitLab CI
+The CI job token (`CI_JOB_TOKEN`) needs `api` scope, or use a personal access token with `api` permissions:
+
+```yaml
+variables:
+  GITLAB_TOKEN: ${CI_JOB_TOKEN}  # or use a PAT
+```
+
+### Behavior Notes
+
+- **Inline mode requires `platform` to be specified** — Setting `review_mode: inline` without `platform` will fail validation
+- **Graceful fallback** — If inline comment posting fails (e.g., JSON parsing error, API failure), Iara automatically falls back to summary mode
+- **Platform compatibility** — If your platform is not GitHub or GitLab, Iara defaults to summary mode with a warning
+
+---
+
 ## 🏃 How to Use
 
 ### Via Pipe (Git Diff)

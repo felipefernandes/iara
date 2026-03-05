@@ -130,10 +130,11 @@ def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: s
 
 
 def review_code(diff: str, api_key: str, config: dict) -> str:
-    """Execute code review trying configured model or fallback."""
-    if not diff.strip():
-        return "✅ No code changes to review."
+    """Execute code review trying configured model or fallback.
 
+    Returns:
+        Review text (markdown for summary mode, JSON string for inline mode)
+    """
     if not diff.strip():
         return "✅ No code changes to review."
 
@@ -162,8 +163,11 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
             # Fail silently on RAG errors to not break the review
             print(f"⚠️ RAG Error: {e}", file=sys.stderr)
 
-    system_prompt = generate_system_prompt(config)
-    
+    # Get review mode from config
+    review_mode = config.get("ci", {}).get("review_mode", "summary")
+
+    system_prompt = generate_system_prompt(config, review_mode=review_mode)
+
     if context_text:
         system_prompt += f"\n\n{context_text}"
 
