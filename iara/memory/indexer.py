@@ -28,21 +28,32 @@ _JS_TS_PATTERNS = [
         r'^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>',
         re.MULTILINE
     ),
+    # Object-literal method: method() { or async method() {
+    re.compile(
+        r'^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*\{',
+        re.MULTILINE
+    ),
 ]
 
 _CS_PATTERNS = [
-    # Class / struct / interface / enum
+    # Class / struct / interface / record / enum
     re.compile(
         r'(?:public|private|protected|internal)?\s*'
         r'(?:static\s+|abstract\s+|sealed\s+|partial\s+)*'
         r'(?:class|struct|interface|record|enum)\s+(\w+)',
         re.MULTILINE
     ),
-    # Method declaration  (visibility + return-type + name + parentheses)
+    # Method declaration (visibility + return-type + name + optional generics + parentheses)
     re.compile(
         r'(?:public|private|protected|internal)\s+'
         r'(?:static\s+|virtual\s+|override\s+|abstract\s+|async\s+)*'
-        r'[\w<>\[\],\s]+\s+(\w+)\s*\([^)]*\)',
+        r'[\w<>\[\],\s]+\s+(\w+)(?:<[^>]+>)?\s*\([^)]*\)',
+        re.MULTILINE
+    ),
+    # Lambda expression / delegate assignment: Func<int, int> name = (x) => { or Action name = () => {
+    re.compile(
+        r'(?:public\s+|private\s+|protected\s+|internal\s+|static\s+|readonly\s+)*'
+        r'(?:\w+(?:<[^>]+>)?)\s+(\w+)\s*=\s*(?:\([^)]*\)|\w+)\s*=>\s*\{',
         re.MULTILINE
     ),
 ]
@@ -158,26 +169,64 @@ class CodeChunker:
             depth = 0
             block_end = brace_pos
             in_string: str = ""
+            is_verbatim_string = False
+            in_single_line_comment = False
+            in_multi_line_comment = False
             escape_next = False
 
             for i in range(brace_pos, len(content)):
                 ch = content[i]
+                next_ch = content[i + 1] if i + 1 < len(content) else ""
+                prev_ch = content[i - 1] if i > 0 else ""
+
+                if in_single_line_comment:
+                    if ch == "\n":
+                        in_single_line_comment = False
+                    continue
+
+                if in_multi_line_comment:
+                    if ch == "*" and next_ch == "/":
+                        in_multi_line_comment = False
+                        # We don't skip the next char here since the next iteration
+                        # will see '/' and since we are not in a comment, it does nothing.
+                        # Wait, the next char is '/', which could trigger a comment again
+                        # if we don't skip it. But `/*` requires `* /`, and `/` alone does nothing.
+                        # Actually, better to just let it process `/` next, it won't match `//` or `/*`.
+                    continue
 
                 if escape_next:
                     escape_next = False
                     continue
 
                 if ch == "\\":
-                    escape_next = True
+                    # Escape sequences are not applied inside C# verbatim strings
+                    if not is_verbatim_string:
+                        escape_next = True
                     continue
 
-                # Simple string tracking (single / double / template-literal)
+                # String tracking (single / double / template-literal)
                 if in_string:
                     if ch == in_string:
+                        # For verbatim strings, `""` is an escaped quote, not end of string
+                        if is_verbatim_string and ch == '"' and next_ch == '"':
+                            escape_next = True  # skip the second quote
+                            continue
                         in_string = ""
+                        is_verbatim_string = False
                     continue
+                
+                # Check for comments BEFORE strings
+                if ch == "/" and next_ch == "/":
+                    in_single_line_comment = True
+                    continue
+                if ch == "/" and next_ch == "*":
+                    in_multi_line_comment = True
+                    continue
+
+                # Check for string starts
                 if ch in ('"', "'", "`"):
                     in_string = ch
+                    is_verbatim_string = (ch == '"' and prev_ch == '@')
                     continue
 
                 if ch == "{":
@@ -190,6 +239,7 @@ class CodeChunker:
 
             if depth != 0:
                 # Unbalanced – skip this match
+                logger.debug(f"[{file_path}] Skipped unbalanced block for match '{name}' starting at offset {match_start}.")
                 continue
 
             block_text = content[match_start: block_end + 1]

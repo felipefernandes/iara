@@ -200,6 +200,38 @@ const qux = (x) => {
         self.assertIn("qux", names)
         self.assertEqual(len(chunks), 3)
 
+    def test_js_object_method(self):
+        code = """\
+const obj = {
+    method(a, b) {
+        return a + b;
+    },
+    async fetch() {
+        return "data";
+    }
+};
+"""
+        chunks = self.chunker.chunk_file("obj.js", code)
+        # We don't get the 'obj' wrapper (it's not a function/class statement), but we get the methods!
+        names = [c.metadata["name"] for c in chunks]
+        self.assertIn("method", names)
+        self.assertIn("fetch", names)
+
+    def test_js_template_literals(self):
+        code = """\
+function useTemplate() {
+    const s = `
+    here is a brace { 
+    and another } 
+    `;
+    return s;
+}
+"""
+        chunks = self.chunker.chunk_file("template.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "useTemplate")
+        self.assertIn("useTemplate", chunks[0].content)
+
     # -- TypeScript ---------------------------------------------------------
 
     def test_ts_function(self):
@@ -334,6 +366,32 @@ public interface IDamageable {
         self.assertEqual(chunks[0].type, "class")  # interface categorised as class
         self.assertEqual(chunks[0].metadata["name"], "IDamageable")
 
+    def test_cs_generic_method(self):
+        code = """\
+public void ProcessData<T>(T data) {
+    Console.WriteLine(data);
+}
+"""
+        chunks = self.chunker.chunk_file("generics.cs", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "ProcessData")
+
+    def test_cs_lambda(self):
+        code = """\
+Func<int, int> square = (x) => {
+    return x * x;
+};
+
+delegate void Callback = () => {
+    Console.WriteLine("Done");
+};
+"""
+        chunks = self.chunker.chunk_file("lambda.cs", code)
+        names = [c.metadata["name"] for c in chunks]
+        self.assertIn("square", names)
+        self.assertIn("Callback", names)
+        self.assertEqual(len(chunks), 2)
+
     def test_cs_struct(self):
         code = """\
 public struct Vector2D {
@@ -383,6 +441,37 @@ function escapeTest() {
         chunks = self.chunker.chunk_file("nobrace.js", code)
         # Should fall back to text since no smart chunks were found
         self.assertTrue(all(c.type == "text" for c in chunks))
+
+    def test_comments_with_braces(self):
+        """Braces inside single-line and multi-line comments should be ignored."""
+        code = '''\
+function commentsTest() {
+    // this is a brace { 
+    /* and here are some more: { } */
+    return true;
+}
+'''
+        chunks = self.chunker.chunk_file("comments.js", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "commentsTest")
+
+    def test_csharp_verbatim_strings(self):
+        """Braces inside C# verbatim strings should be ignored and escape characters inside them should be treated literally."""
+        code = '''\
+public class StringParser {
+    public string GetTemplate() {
+        string s = @"Here is a raw string
+with some braces { }
+and an escaped quote "" 
+which should not break the brace balancing";
+        return s;
+    }
+}
+'''
+        chunks = self.chunker.chunk_file("verbatim.cs", code)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].metadata["name"], "StringParser")
+        self.assertIn("GetTemplate", chunks[0].content)
 
     def test_unbalanced_braces_fallback(self):
         """Unbalanced braces should skip the block and fall back to text (line 193)."""
