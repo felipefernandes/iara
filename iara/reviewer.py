@@ -124,6 +124,9 @@ def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: s
 
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8")
+        # Debug: Log full error response for 403
+        if e.code == 403:
+            print(f"DEBUG HTTP 403: {error_body[:500]}", file=sys.stderr)
         # Extract friendly message from JSON error response
         friendly_msg = _extract_error_message(e.code, error_body, model)
         raise Exception(friendly_msg)
