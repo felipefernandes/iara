@@ -17,12 +17,13 @@ KNOWN_FOCUS_AREAS = ["Logic", "Security", "Performance", "Clean Code",
                      "Error Handling", "Testing"]
 
 SUGGESTED_LANGUAGES = ["en", "pt-br", "es", "fr", "de", "ja", "zh"]
-PROVIDER_OPTIONS = ["openrouter", "openai", "gemini", "anthropic"]
+PROVIDER_OPTIONS = ["openrouter", "openai", "gemini", "anthropic", "groq"]
 PROVIDER_KEY_URLS = {
     "openrouter": "https://openrouter.ai/keys",
     "openai": "https://platform.openai.com/api-keys",
     "gemini": "https://aistudio.google.com/app/apikey",
-    "anthropic": "https://console.anthropic.com/keys"
+    "anthropic": "https://console.anthropic.com/keys",
+    "groq": "https://console.groq.com/keys"
 }
 
 
@@ -119,7 +120,7 @@ def _step_provider():
     print("  Step 2: LLM Provider")
     print()
 
-    options = "openrouter (default, free), openai, gemini, anthropic"
+    options = "openrouter (default, free), openai, gemini, anthropic, groq"
     print("  Options: %s" % options)
 
     while True:
