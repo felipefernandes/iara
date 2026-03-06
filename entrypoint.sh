@@ -165,10 +165,8 @@ if [ "$POST_COMMENT" = "true" ] && [ -n "$GITHUB_TOKEN" ]; then
   echo "Posting review comment to PR #${PR_NUMBER}..."
 
   # Use the new post_comment module which supports inline and summary modes
-  echo "$REVIEW" | PYTHONPATH=/app python3 -m iara.post_comment \
-    --token "$GITHUB_TOKEN" \
-    --repo "$REPO" \
-    --pr "$PR_NUMBER"
+  # Pass "-" to indicate reading from stdin (review text is piped via echo)
+  echo "$REVIEW" | PYTHONPATH=/app python3 -m iara.post_comment -
 
   if [ $? -eq 0 ]; then
     echo "Review posted successfully to PR #${PR_NUMBER}."
