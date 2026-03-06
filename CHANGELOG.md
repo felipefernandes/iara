@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.8.0] - 2026-03-06
+
+### ✨ New Features
+
+#### Multi-Provider Support: Groq
+Added Groq as the 5th LLM provider alongside OpenRouter, OpenAI, Gemini, and Anthropic.
+
+**Why Groq?**
+- ⚡ Fast inference speeds (up to 10x faster than traditional providers)
+- 💬 Better JSON generation for inline PR comments (free OpenRouter models struggle with structured output)
+- 🎯 Reliable models: `llama-3.3-70b-versatile`, `llama-3.1-70b-versatile`, `mixtral-8x7b-32768`, `gemma2-9b-it`
+- 🔓 Competitive pricing for high-quality code reviews
+
+**How to use:**
+```bash
+export IARA_PROVIDER="groq"
+export GROQ_API_KEY="gsk_..."
+```
+
+Or in `.iara.json`:
+```json
+{
+  "model": {
+    "provider": "groq",
+    "preferred": "llama-3.3-70b-versatile"
+  }
+}
+```
+
+**GitHub Actions integration:**
+```yaml
+- uses: felipefernandes/iara@v1
+  with:
+    provider: groq
+    groq_api_key: ${{ secrets.GROQ_API_KEY }}
+```
+
+### 🐛 Bug Fixes
+
+- **Fixed Cloudflare protection error (HTTP 403)**: Added `User-Agent` header to bypass Cloudflare error code 1010 when calling Groq API from GitHub Actions
+- **Improved inline comment JSON parser**: Enhanced markdown code block stripping with regex to handle LLM variations (```json, ```, ````json, etc.)
+
 ### 📚 Documentation
 
 - Reorganized documentation structure for better navigation
@@ -20,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Table of Contents to both README files
 - Organized example files into `examples/` folder (iara-example.json, iara-example-inline.json, gitlab-ci.yml)
 - Updated all documentation references to new file paths
+- Added Groq provider examples throughout documentation
 
 ---
 
