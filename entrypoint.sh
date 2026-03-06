@@ -121,14 +121,6 @@ elif [ "$PROVIDER" = "gemini" ]; then
 elif [ "$PROVIDER" = "anthropic" ]; then
   export ANTHROPIC_API_KEY
 elif [ "$PROVIDER" = "groq" ]; then
-  # Debug: Check if GROQ_API_KEY is set (masked for security)
-  if [ -n "$GROQ_API_KEY" ]; then
-    MASKED_KEY="${GROQ_API_KEY:0:8}...${GROQ_API_KEY: -4}"
-    echo "DEBUG: GROQ_API_KEY is set (masked): $MASKED_KEY"
-    echo "DEBUG: GROQ_API_KEY length: ${#GROQ_API_KEY}"
-  else
-    echo "::error::GROQ_API_KEY is empty after validation!"
-  fi
   export GROQ_API_KEY
 else
   export OPENROUTER_API_KEY

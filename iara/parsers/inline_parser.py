@@ -36,6 +36,16 @@ def parse_inline_review(text: str) -> Dict[str, Any]:
     Raises:
         ValueError: If JSON is invalid or schema doesn't match
     """
+    # Strip markdown code blocks if present (e.g., ```json\n{...}\n```)
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:]  # Remove ```json
+    elif text.startswith("```"):
+        text = text[3:]  # Remove ```
+    if text.endswith("```"):
+        text = text[:-3]  # Remove closing ```
+    text = text.strip()
+
     # Try to parse JSON
     try:
         data = json.loads(text)
