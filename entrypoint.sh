@@ -15,6 +15,7 @@ PROVIDER="${INPUT_PROVIDER:-openrouter}"
 PROVIDER=$(echo "$PROVIDER" | tr '[:upper:]' '[:lower:]')
 IARA_MODEL="${INPUT_MODEL}"
 IARA_LANGUAGE="${INPUT_LANGUAGE}"
+IARA_REVIEW_MODE="${INPUT_REVIEW_MODE:-summary}"
 CONFIG_PATH="${INPUT_CONFIG_PATH:-.iara.json}"
 POST_COMMENT="${INPUT_POST_COMMENT:-true}"
 
@@ -135,6 +136,10 @@ fi
 
 if [ -n "$IARA_LANGUAGE" ]; then
   export IARA_LANGUAGE
+fi
+
+if [ -n "$IARA_REVIEW_MODE" ]; then
+  export IARA_REVIEW_MODE
 fi
 
 # --- Copy config from workspace if it exists ---

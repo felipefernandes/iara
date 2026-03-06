@@ -42,6 +42,10 @@ inputs:
     description: 'Review output language (en, pt-br, es, fr, etc.). Defaults to config file or en.'
     required: false
     default: ''
+  review_mode:
+    description: 'Review mode: summary (default) or inline. Inline mode posts comments on specific code lines.'
+    required: false
+    default: 'summary'
   index_codebase:
     description: 'Whether to index the codebase for RAG memory (true/false). Defaults to false.'
     required: false
@@ -74,6 +78,7 @@ runs:
     INPUT_CONFIG_PATH: ${{ inputs.config_path }}
     INPUT_POST_COMMENT: ${{ inputs.post_comment }}
     INPUT_LANGUAGE: ${{ inputs.language }}
+    INPUT_REVIEW_MODE: ${{ inputs.review_mode }}
     INPUT_INDEX_CODEBASE: ${{ inputs.index_codebase }}
     GITHUB_TOKEN: ${{ inputs.github_token }}
     GITHUB_REPOSITORY: ${{ inputs.github_repository }}

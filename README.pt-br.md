@@ -18,6 +18,7 @@ Iara é uma ferramenta de revisão de código automatizada, agnóstica a projeto
 - [Capacidades](#-capacidades)
 - [Instalação e Setup](#-instalação-e-setup)
 - [Como Usar](#-como-usar)
+- [Privacidade & Segurança](#-privacidade--segurança)
 - [Documentação](#-documentação)
 - [Testes](#-testes)
 - [Contribuindo](#-contribuindo)
@@ -179,12 +180,43 @@ git diff | iara
 
 ---
 
+## 🔒 Privacidade & Segurança
+
+**Importante**: A Iara envia seu código para provedores de LLM de terceiros para análise. Embora conveniente, isso tem implicações de privacidade que você deve conhecer.
+
+### O que acontece com seu código?
+- Diffs de código são enviados para APIs externas (OpenRouter, OpenAI, Gemini, Anthropic, Groq)
+- Provedores podem armazenar dados temporariamente para processamento
+- Políticas de retenção e treinamento variam por provedor
+
+### Comparação de Privacidade dos Provedores
+
+| Provedor | Treina com dados da API | Retenção de Dados | Opções Enterprise | Melhor Para |
+|----------|------------------------|-------------------|-------------------|-------------|
+| **Anthropic** | ❌ Não | Temporário | ✅ Sim | Código sensível |
+| **OpenAI** | ⚠️ Requer opt-out | 30 dias | ✅ Sim | Uso geral |
+| **Gemini** | ⚠️ Varia | Não documentado | ✅ Sim | Uso geral |
+| **Groq** | ⚠️ Não documentado | Não documentado | ❌ Não | Código público |
+| **OpenRouter** | ⚠️ Depende do modelo | Varia | ❌ Não | Código público |
+
+### Recomendações por Caso de Uso
+
+- **Projetos Open Source**: Qualquer provedor (código já é público)
+- **Projetos Privados (não-sensíveis)**: Anthropic ou Groq
+- **Código Sensível/Proprietário**: Anthropic Enterprise ou LLM self-hosted
+- **Indústrias Reguladas (HIPAA, PCI-DSS)**: Apenas LLM self-hosted (ex: Ollama - veja [Issue #76](https://github.com/felipefernandes/iara/issues/76))
+
+Para informações detalhadas sobre privacidade e opções self-hosted, veja o **[Guia de Privacidade & Segurança](docs/privacy-security.md)** (em inglês).
+
+---
+
 ## 📚 Documentação
 
 Para guias detalhados e opções de configuração, veja:
 
 - **[Guia de Configuração](docs/configuration.md)** - Configuração do projeto, provedores, modelos, memória RAG (em inglês)
 - **[Integração CI/CD](docs/ci-integration.md)** - GitHub Actions, GitLab CI, Docker, comentários inline (em inglês)
+- **[Guia de Privacidade & Segurança](docs/privacy-security.md)** - Privacidade de dados, políticas dos provedores, opções self-hosted (em inglês)
 - **[Guia de Contribuição](CONTRIBUTING.md)** - Setup de desenvolvimento, testes, pull requests (bilíngue)
 
 ### Exemplos de Configuração
