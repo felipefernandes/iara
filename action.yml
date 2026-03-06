@@ -43,6 +43,15 @@ inputs:
     description: 'Whether to index the codebase for RAG memory (true/false). Defaults to false.'
     required: false
     default: 'false'
+  github_token:
+    description: 'GitHub token for API access. Defaults to github.token.'
+    required: false
+  github_repository:
+    description: 'GitHub repository (owner/repo). Defaults to github.repository.'
+    required: false
+  github_event_path:
+    description: 'Path to event payload. Defaults to github.event_path.'
+    required: false
 
 outputs:
   review:
@@ -62,3 +71,6 @@ runs:
     INPUT_POST_COMMENT: ${{ inputs.post_comment }}
     INPUT_LANGUAGE: ${{ inputs.language }}
     INPUT_INDEX_CODEBASE: ${{ inputs.index_codebase }}
+    GITHUB_TOKEN: ${{ inputs.github_token }}
+    GITHUB_REPOSITORY: ${{ inputs.github_repository }}
+    GITHUB_EVENT_PATH: ${{ inputs.github_event_path }}
