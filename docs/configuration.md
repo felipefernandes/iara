@@ -16,6 +16,7 @@ Complete guide for configuring Iara Code Reviewer in your project.
   - [Installation](#installation)
   - [Indexing Your Codebase](#indexing-your-codebase)
   - [Smart Chunking](#smart-chunking)
+  - [Hybrid Search (Vector + Full-Text)](#hybrid-search-vector--full-text)
   - [Review with Context](#review-with-context)
   - [Managing Memory](#managing-memory)
 - [Configuration Examples](#configuration-examples)
@@ -140,6 +141,24 @@ Iara uses **language-aware chunking** to ensure that code blocks fed into the LL
 | All others | Plain-text fallback | Blocks of up to 100 lines |
 
 > **Why does this matter?** Chunks that cut a function in half generate noisy context for the LLM. Smart chunking keeps logical units intact, improving review accuracy and reducing token waste.
+
+### Hybrid Search (Vector + Full-Text)
+
+Iara's memory system uses **hybrid search** combining two complementary search modes:
+
+| Search Mode | What it finds | Best for |
+| :--- | :--- | :--- |
+| **Vector Search** | Semantically similar code | Understanding context and logic |
+| **Full-Text Search (FTS)** | Exact symbol/name matching | Finding specific functions or variables |
+
+The system uses **Reciprocal Rank Fusion (RRF)** to intelligently merge both result sets:
+
+- Results appearing in both searches get boosted rankings
+- Symbol names match exactly (e.g., `calculate_risk_score()` finds `calculate_risk_score()`)
+- Semantic understanding complements lexical precision
+- Gracefully falls back to vector-only if FTS index unavailable
+
+**Result**: Better context retrieval for more accurate code reviews.
 
 ### Review with Context
 
