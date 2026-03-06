@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from typing import Dict, List, Any
 
 
@@ -37,13 +38,12 @@ def parse_inline_review(text: str) -> Dict[str, Any]:
         ValueError: If JSON is invalid or schema doesn't match
     """
     # Strip markdown code blocks if present (e.g., ```json\n{...}\n```)
+    # Use regex to handle variations: ```json, ```, ````json, etc.
     text = text.strip()
-    if text.startswith("```json"):
-        text = text[7:]  # Remove ```json
-    elif text.startswith("```"):
-        text = text[3:]  # Remove ```
-    if text.endswith("```"):
-        text = text[:-3]  # Remove closing ```
+    # Remove opening fence: ```json or ``` or ````json (optional language identifier)
+    text = re.sub(r'^```+(?:json)?\s*\n?', '', text, flags=re.IGNORECASE)
+    # Remove closing fence: ``` or ````
+    text = re.sub(r'\n?```+\s*$', '', text)
     text = text.strip()
 
     # Try to parse JSON
