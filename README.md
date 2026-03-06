@@ -18,6 +18,7 @@ Iara is an automated, project-agnostic, configurable code review tool designed t
 - [Capabilities](#-capabilities)
 - [Installation and Setup](#-installation-and-setup)
 - [How to Use](#-how-to-use)
+- [Privacy & Security](#-privacy--security)
 - [Documentation](#-documentation)
 - [Tests](#-tests)
 - [Contributing](#-contributing)
@@ -179,12 +180,43 @@ git diff | iara
 
 ---
 
+## 🔒 Privacy & Security
+
+**Important**: Iara sends your code to third-party LLM providers for analysis. While convenient, this has privacy implications you should be aware of.
+
+### What happens to your code?
+- Code diffs are sent to external APIs (OpenRouter, OpenAI, Gemini, Anthropic, Groq)
+- Providers may temporarily store data for processing
+- Data retention and training policies vary by provider
+
+### Provider Privacy Comparison
+
+| Provider | Training on API Data | Data Retention | Enterprise Options | Best For |
+|----------|---------------------|----------------|-------------------|----------|
+| **Anthropic** | ❌ No | Temporary | ✅ Yes | Sensitive code |
+| **OpenAI** | ⚠️ Opt-out required | 30 days | ✅ Yes | General use |
+| **Gemini** | ⚠️ Varies | Not documented | ✅ Yes | General use |
+| **Groq** | ⚠️ Not documented | Not documented | ❌ No | Public code |
+| **OpenRouter** | ⚠️ Depends on model | Varies | ❌ No | Public code |
+
+### Recommendations by Use Case
+
+- **Open Source Projects**: Any provider (code is already public)
+- **Private Projects (non-sensitive)**: Anthropic or Groq
+- **Sensitive/Proprietary Code**: Anthropic Enterprise or self-hosted LLM
+- **Regulated Industries (HIPAA, PCI-DSS)**: Self-hosted LLM only (e.g., Ollama - see [Issue #76](https://github.com/felipefernandes/iara/issues/76))
+
+For detailed privacy information and self-hosted options, see **[Privacy & Security Guide](docs/privacy-security.md)**.
+
+---
+
 ## 📚 Documentation
 
 For detailed guides and configuration options, see:
 
 - **[Configuration Guide](docs/configuration.md)** - Project configuration, providers, models, RAG memory setup
 - **[CI/CD Integration](docs/ci-integration.md)** - GitHub Actions, GitLab CI, Docker, inline PR comments
+- **[Privacy & Security Guide](docs/privacy-security.md)** - Data privacy, provider policies, self-hosted options
 - **[Contributing Guide](CONTRIBUTING.md)** - Development setup, testing, pull requests
 
 ### Configuration Examples
