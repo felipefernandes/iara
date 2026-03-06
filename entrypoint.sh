@@ -89,6 +89,7 @@ if [ -z "$PR_NUMBER" ]; then
   exit 0
 fi
 
+export PR_NUMBER
 echo "Reviewing PR #${PR_NUMBER} in ${REPO}"
 
 # --- Get PR Diff via GitHub API ---
