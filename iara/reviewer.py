@@ -45,7 +45,10 @@ def _extract_error_message(status_code: int, body: str, model: str) -> str:
 
 def _build_headers(api_key: str, provider: str) -> dict:
     provider_cfg = PROVIDER_CONFIGS.get(provider, PROVIDER_CONFIGS["openrouter"])
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Iara-Code-Reviewer/1.0"
+    }
 
     if provider_cfg["auth_type"] == "bearer":
         headers["Authorization"] = f"Bearer {api_key}"
