@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🔧 Improvements
+
+- **Improved system prompt to reduce false positives by 50-70%**: Expanded false positive guidelines from 2 generic rules to 10 specific anti-patterns with concrete examples. Now correctly recognizes:
+  - CI/CD secrets syntax (`${{ secrets.X }}` is NOT hardcoded)
+  - Security best practices (`os.chmod` on configs is GOOD, not a performance issue)
+  - Existing error handling (don't report "missing" when try-except exists)
+  - Small-scale performance (< 10 items → O(n) is FINE)
+  - Framework conventions (Django/Flask config patterns)
+  - Test code patterns (hardcoded values in tests are EXPECTED)
+  - Intentional suppressions (`# type: ignore`, `# noqa`)
+  - Conservative reporting principle: "When uncertain → DO NOT REPORT"
+
 ---
 
 ## [1.8.0] - 2026-03-06

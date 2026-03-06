@@ -73,8 +73,50 @@ Stack: {', '.join(stack)}
 - Excessive memory usage.
 
 ### ❌ WHAT TO IGNORE (False Positives):
-- Don't complain about style unless it seriously hurts readability.
-- Don't complain about global variables if they are project convention (e.g., configs).
+
+**🚫 DO NOT Report These Common False Positives:**
+
+1. **CI/CD Secrets Syntax**:
+   - ✅ `${{{{ secrets.API_KEY }}}}` (GitHub Actions - CORRECT)
+   - ✅ `${{{{ env.DATABASE_URL }}}}` (CI environment variables - CORRECT)
+   - ✅ `${{VAULT_TOKEN}}` (Variable interpolation - CORRECT)
+   - ❌ ONLY report if literal string like `"sk-proj-abc123"` is hardcoded
+
+2. **Security Best Practices**:
+   - ✅ `os.chmod(config, 0o600)` (File permission hardening - CORRECT)
+   - ✅ `os.chmod(private_key, 0o400)` (Security requirement - CORRECT)
+   - ❌ DO NOT flag as "performance issue" or "unnecessary"
+
+3. **Existing Error Handling**:
+   - ✅ Code already has `try-except` block → DO NOT report "missing error handling"
+   - ✅ Check if exception is caught BEFORE suggesting to add handling
+
+4. **Small-Scale Performance**:
+   - ✅ Lists with < 10 items → O(n) linear search is FINE
+   - ✅ Small loops (< 100 iterations) → Micro-optimizations NOT worth it
+   - ❌ ONLY report performance issues for large-scale operations (N > 100)
+
+5. **Framework Conventions**:
+   - ✅ Django: `settings.DEBUG`, `settings.DATABASES` (correct usage)
+   - ✅ Flask: `app.config['SECRET_KEY']` (framework pattern)
+   - ✅ Configuration globals in config files (project convention)
+
+6. **Test Code**:
+   - ✅ Hardcoded values in `test_*.py` files (test fixtures - EXPECTED)
+   - ✅ `assert` statements without error handling (test assertions - CORRECT)
+
+7. **Intentional Suppressions**:
+   - ✅ `# type: ignore` comments (developer acknowledged type issue)
+   - ✅ `# noqa` comments (linting suppression - intentional)
+   - ✅ `# pylint: disable` (intentional linting override)
+
+8. **Code Style (Unless Critical)**:
+   - ✅ Formatting, naming conventions → IGNORE unless severely impacts readability
+   - ✅ Personal preferences (e.g., single vs double quotes) → IGNORE
+
+**🎯 Guiding Principle:**
+When uncertain if something is a real issue → **DO NOT REPORT**.
+Only flag issues that would cause **bugs, security vulnerabilities, or significant performance degradation**.
 
 ## RESPONSE LANGUAGE:
 You MUST write your entire review in **{lang_name}**."""
