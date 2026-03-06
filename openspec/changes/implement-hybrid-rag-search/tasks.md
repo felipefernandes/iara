@@ -51,25 +51,25 @@ All tasks should be completed in order. Mark with `[x]` when done.
   - Execute `pytest tests/` and ensure all tests pass
   - Pay special attention to `test_lancedb_store.py` and `test_retriever.py`
 
-- [ ] **Manual testing with real codebase**
+- [x] **Manual testing with real codebase**
   - Index a real codebase (e.g., iara-bot-reviewer itself)
   - Create test diffs with exact function names
   - Verify hybrid search returns more relevant results than vector-only
   - Compare retrieval quality before/after
 
-- [ ] **Performance benchmark**
+- [x] **Performance benchmark**
   - Measure retrieval latency before/after hybrid search
   - Ensure overhead is < 2x (acceptable for better quality)
   - Document findings in PR or issue comment
 
 ## Documentation Tasks
 
-- [ ] **Update RAG documentation**
+- [x] **Update RAG documentation**
   - Document hybrid search in README or docs/
   - Explain FTS index creation and RRF fusion
   - Note graceful degradation behavior
 
-- [ ] **Update CHANGELOG**
+- [x] **Update CHANGELOG**
   - Add entry for hybrid search feature
   - Note performance and quality improvements
 
