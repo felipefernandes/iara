@@ -19,7 +19,9 @@ jobs:
       - name: Run Iara Code Review
         uses: ./
         with:
-          openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          provider: groq
+          groq_api_key: ${{ secrets.GROQ_API_KEY }}
+          model: llama-3.3-70b-versatile
           index_codebase: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_repository: ${{ github.repository }}
