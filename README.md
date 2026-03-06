@@ -107,6 +107,10 @@ export GEMINI_API_KEY="AIza..."
 # Anthropic Claude
 export IARA_PROVIDER="anthropic"
 export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Groq
+export IARA_PROVIDER="groq"
+export GROQ_API_KEY="gsk_..."
 ```
 
 API key resolution priority: environment variable > global config (`~/.iara/config.json`).

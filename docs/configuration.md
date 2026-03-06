@@ -88,8 +88,9 @@ You can configure the Iara Indexer's footprint to respect maximum file limits an
 | OpenAI | `openai` | `gpt-4o`, `gpt-4.5-preview`, `o1` |
 | Google Gemini | `gemini` | `gemini-2.5-flash`, `gemini-2.5-pro` |
 | Anthropic Claude | `anthropic` | `claude-opus-4-5-20250929`, `claude-sonnet-4-5-20250929` |
+| Groq | `groq` | `llama-3.3-70b-versatile`, `llama-3.1-70b-versatile`, `mixtral-8x7b-32768` |
 
-> **Note**: Smart fallback to free models is only available for OpenRouter. When using `openai`, `gemini`, or `anthropic`, set `"fallback_enabled": false`.
+> **Note**: Smart fallback to free models is only available for OpenRouter. When using `openai`, `gemini`, `anthropic`, or `groq`, set `"fallback_enabled": false`.
 
 The `language` field controls the review output language. Supported values: `en`, `pt-br`, `es`, `fr`, `de`, `ja`, `zh`, `ko`, `ru`, or any language the LLM understands.
 

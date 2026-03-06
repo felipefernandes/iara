@@ -19,8 +19,11 @@ inputs:
   anthropic_api_key:
     description: 'Anthropic API key for LLM access'
     required: false
+  groq_api_key:
+    description: 'Groq API key for LLM access'
+    required: false
   provider:
-    description: 'LLM provider: openrouter (default), openai, gemini, anthropic'
+    description: 'LLM provider: openrouter (default), openai, gemini, anthropic, groq'
     required: false
     default: 'openrouter'
   model:
@@ -65,6 +68,7 @@ runs:
     INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
     INPUT_GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
     INPUT_ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+    INPUT_GROQ_API_KEY: ${{ inputs.groq_api_key }}
     INPUT_PROVIDER: ${{ inputs.provider }}
     INPUT_MODEL: ${{ inputs.model }}
     INPUT_CONFIG_PATH: ${{ inputs.config_path }}
