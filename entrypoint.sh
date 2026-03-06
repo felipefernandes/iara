@@ -10,6 +10,7 @@ OPENROUTER_API_KEY="${INPUT_OPENROUTER_API_KEY}"
 OPENAI_API_KEY="${INPUT_OPENAI_API_KEY}"
 GEMINI_API_KEY="${INPUT_GEMINI_API_KEY}"
 ANTHROPIC_API_KEY="${INPUT_ANTHROPIC_API_KEY}"
+GROQ_API_KEY="${INPUT_GROQ_API_KEY}"
 PROVIDER="${INPUT_PROVIDER:-openrouter}"
 PROVIDER=$(echo "$PROVIDER" | tr '[:upper:]' '[:lower:]')
 IARA_MODEL="${INPUT_MODEL}"
@@ -24,10 +25,10 @@ export GITHUB_EVENT_PATH="${INPUT_GITHUB_EVENT_PATH:-$GITHUB_EVENT_PATH}"
 
 # --- Validate Provider ---
 case "$PROVIDER" in
-  openrouter|openai|gemini|anthropic)
+  openrouter|openai|gemini|anthropic|groq)
     ;;
   *)
-    echo "::error::Invalid provider '$PROVIDER'. Supported: openrouter, openai, gemini, anthropic."
+    echo "::error::Invalid provider '$PROVIDER'. Supported: openrouter, openai, gemini, anthropic, groq."
     exit 1
     ;;
 esac
@@ -51,6 +52,10 @@ if [ -n "$ANTHROPIC_API_KEY" ]; then
   KEY_COUNT=$((KEY_COUNT + 1))
   KEY_LABELS+=("anthropic")
 fi
+if [ -n "$GROQ_API_KEY" ]; then
+  KEY_COUNT=$((KEY_COUNT + 1))
+  KEY_LABELS+=("groq")
+fi
 
 if [ "$KEY_COUNT" -gt 1 ]; then
   echo "::warning::Multiple provider API keys provided (${KEY_LABELS[*]}). Using only '${PROVIDER}'."
@@ -69,6 +74,11 @@ elif [ "$PROVIDER" = "gemini" ]; then
 elif [ "$PROVIDER" = "anthropic" ]; then
   if [ -z "$ANTHROPIC_API_KEY" ]; then
     echo "::error::ANTHROPIC_API_KEY is required. Add it as a repository secret."
+    exit 1
+  fi
+elif [ "$PROVIDER" = "groq" ]; then
+  if [ -z "$GROQ_API_KEY" ]; then
+    echo "::error::GROQ_API_KEY is required. Add it as a repository secret."
     exit 1
   fi
 else
@@ -110,6 +120,8 @@ elif [ "$PROVIDER" = "gemini" ]; then
   export GEMINI_API_KEY
 elif [ "$PROVIDER" = "anthropic" ]; then
   export ANTHROPIC_API_KEY
+elif [ "$PROVIDER" = "groq" ]; then
+  export GROQ_API_KEY
 else
   export OPENROUTER_API_KEY
 fi
