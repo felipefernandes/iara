@@ -6,17 +6,19 @@ import os
 from iara.config import load_config
 from iara.parsers.inline_parser import parse_inline_review
 from iara.platforms.factory import get_adapter
+from iara.filters import filter_false_positives
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def post_review_comments(review_text: str) -> int:
+def post_review_comments(review_text: str, diff: str = "") -> int:
     """Post review comments using configured platform adapter.
 
     Args:
         review_text: Review output from LLM (JSON for inline mode, markdown for summary)
+        diff: Original diff text (optional, used for false positive filtering)
 
     Returns:
         0 on success, 1 on error
@@ -84,6 +86,20 @@ def post_review_comments(review_text: str) -> int:
                 summary = data["summary"]
 
                 logger.info(f"Parsed {len(comments)} inline comments")
+
+                # Apply false positive filtering (inline mode only)
+                if diff:
+                    try:
+                        custom_patterns = config.get("review", {}).get("false_positive_patterns", [])
+                        comments = filter_false_positives(comments, diff, custom_patterns)
+                        data["comments"] = comments
+                        logger.info(f"{len(comments)} comments after filtering")
+                    except Exception as e:
+                        logger.error(f"Error filtering false positives: {e}")
+                        logger.warning("Proceeding with unfiltered comments")
+                        # Keep original comments on error
+                else:
+                    logger.warning("Diff not provided, skipping false positive filtering")
 
                 # Get platform adapter
                 adapter = get_adapter(platform, token, repo, pr_number, head_sha=commit_sha)
@@ -181,7 +197,10 @@ def main():
         # Read from command line argument
         review_text = sys.argv[1]
 
-    exit_code = post_review_comments(review_text)
+    # Get diff from environment variable (set by entrypoint.sh)
+    diff = os.environ.get("PR_DIFF", "")
+
+    exit_code = post_review_comments(review_text, diff=diff)
     sys.exit(exit_code)
 
 

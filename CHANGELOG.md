@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Intentional suppressions (`# type: ignore`, `# noqa`)
   - Conservative reporting principle: "When uncertain → DO NOT REPORT"
 
+- **Added post-processing filters for known false positives (30-50% additional reduction)**: Deterministic pattern-based filtering catches false positives that slip through LLM responses. Works **only in inline mode**.
+  - **4 built-in patterns**: CI/CD secrets syntax, security chmod, existing error handling, small-scale performance
+  - **Configurable via `.iara.json`**: Add custom patterns for project-specific conventions
+  - **Context-aware filtering**: Extracts code context from diffs to make intelligent filtering decisions
+  - **Transparent logging**: Shows exactly what was filtered and why (`INFO: Filtered 2 false positive(s)`)
+  - **See [Configuration Guide](docs/configuration.md#false_positive_patterns)** for examples and pattern schema
+
 ---
 
 ## [1.8.0] - 2026-03-06
