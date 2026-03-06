@@ -76,6 +76,77 @@ You can configure the Iara Indexer's footprint to respect maximum file limits an
 
 **`max_index_file_size`:** Sets the byte threshold for a single file to be read (e.g. `10485760` for 10MB overrides the default 1MB restriction).
 
+### false_positive_patterns
+
+**`false_positive_patterns`:** Defines custom patterns to filter out known false positives from inline review comments before posting them to pull requests. This feature works only in **inline mode**.
+
+Iara includes 4 built-in patterns that filter common false positives:
+1. **CI/CD Secrets Syntax** - Filters comments about `${{ secrets.X }}` in GitHub Actions workflows
+2. **Security Best Practices** - Filters complaints about `os.chmod()` with restrictive permissions
+3. **Existing Error Handling** - Filters "missing error handling" when try-except blocks exist
+4. **Small-Scale Performance** - Filters micro-optimizations for small datasets (< 10 items)
+
+You can add your own custom patterns to extend filtering for project-specific conventions:
+
+```json
+{
+  "review": {
+    "false_positive_patterns": [
+      {
+        "name": "django-settings-globals",
+        "file_pattern": "settings\\.py$",
+        "message_pattern": "global.*variable",
+        "reason": "Django settings.py uses globals by convention"
+      }
+    ]
+  }
+}
+```
+
+**Pattern Schema:**
+- **`name`** (optional): Human-readable identifier for the pattern
+- **`file_pattern`** (optional): Regex to match file paths (e.g., `"\.test\.js$"` for test files)
+- **`message_pattern`** (required): Regex to match comment messages (e.g., `"hardcoded.*secret"`)
+- **`context_safe`** (optional): Regex pattern - if found in code context, the comment is filtered
+- **`reason`** (optional): Explanation for why this is filtered (shown in logs)
+
+**Example Patterns:**
+
+```json
+{
+  "review": {
+    "false_positive_patterns": [
+      {
+        "name": "flask-app-config",
+        "file_pattern": "app\\.py$",
+        "message_pattern": "global.*config",
+        "context_safe": "app\\.config",
+        "reason": "Flask uses app.config as framework pattern"
+      },
+      {
+        "name": "test-fixtures",
+        "file_pattern": "test_.*\\.py$",
+        "message_pattern": "hardcoded",
+        "reason": "Test files use hardcoded fixtures by design"
+      }
+    ]
+  }
+}
+```
+
+**How It Works:**
+1. After the LLM generates inline comments, Iara extracts code context from the diff
+2. Each comment is checked against default + custom patterns
+3. If a pattern matches (file + message + context conditions), the comment is filtered out
+4. Filtering is logged for transparency (`INFO: Filtered 2 false positive(s)`)
+
+**When to Use:**
+- Your project has framework-specific conventions (Django, Flask, React, etc.)
+- Certain files legitimately use patterns that look like anti-patterns (test files, config files)
+- You want to reduce noise from recurring false positives that the LLM can't learn to avoid
+
+**Note:** Custom patterns are merged with built-in patterns, so you don't need to redefine the defaults.
+
 ---
 
 ## Provider Configuration
