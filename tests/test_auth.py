@@ -130,25 +130,25 @@ class TestValidateApiKey(unittest.TestCase):
 
     @patch("urllib.request.urlopen")
     def test_network_error(self, mock_urlopen):
-        """Network error returns True to avoid blocking valid keys."""
+        """Network error returns False."""
         import urllib.error
         mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
 
         is_valid, error = validate_api_key("sk-or-test")
-        self.assertTrue(is_valid)
-        self.assertIsNone(error)
+        self.assertFalse(is_valid)
+        self.assertIn("network error", error.lower())
 
     @patch("urllib.request.urlopen")
     def test_http_500_error_skips_validation(self, mock_urlopen):
-        """HTTP Errors other than 401/403 (like 500) assume key might be valid to not block the user."""
+        """HTTP Errors other than 401/403 (like 500) fail validation strictly."""
         import urllib.error
         mock_urlopen.side_effect = urllib.error.HTTPError(
             url="", code=500, msg="Internal Server Error", hdrs=None, fp=None
         )
 
         is_valid, error = validate_api_key("sk-500-test")
-        self.assertTrue(is_valid)
-        self.assertIsNone(error)
+        self.assertFalse(is_valid)
+        self.assertIn("service issue", error.lower())
 
     @patch("urllib.request.urlopen")
     def test_validate_anthropic_valid_key(self, mock_urlopen):
