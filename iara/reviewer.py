@@ -200,10 +200,10 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
         models_to_try = [env_model]
 
     if not models_to_try:
-        # Fall back to the first suggested model for this provider
-        default_models = SUGGESTED_MODELS.get(provider, [])
+        # Fall back to iterating through all suggested models for this provider
+        default_models = list(SUGGESTED_MODELS.get(provider, []))
         if default_models:
-            models_to_try = [default_models[0]]
+            models_to_try = default_models
         else:
             return (
                 "❌ No model configured for provider '%s'. "

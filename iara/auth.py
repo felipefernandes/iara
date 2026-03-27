@@ -90,8 +90,12 @@ def validate_api_key(api_key, provider="openrouter"):
     import urllib.request
     import urllib.error
 
-    if not isinstance(api_key, str) or len(api_key.strip()) < 5:
-        return False, "API key is missing or suspiciously short"
+    if not api_key:
+        return False, "API key cannot be empty"
+    if not str(api_key).strip():
+        return False, "API key cannot be whitespace-only empty string"
+    if len(str(api_key).strip()) < 5:
+        return False, "API key is suspiciously short"
 
     provider = normalize_provider(provider)
 
