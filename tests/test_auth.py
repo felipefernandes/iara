@@ -136,8 +136,51 @@ class TestValidateApiKey(unittest.TestCase):
 
         is_valid, error = validate_api_key("sk-or-test")
         self.assertFalse(is_valid)
-        self.assertIn("connection", error.lower())
+        self.assertIn("network error", error.lower())
+
+    @patch("urllib.request.urlopen")
+    def test_http_500_error_skips_validation(self, mock_urlopen):
+        """HTTP Errors other than 401/403 (like 500) fail validation strictly."""
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url="", code=500, msg="Internal Server Error", hdrs=None, fp=None
+        )
+
+        is_valid, error = validate_api_key("sk-500-test")
+        self.assertFalse(is_valid)
+        self.assertIn("service issue", error.lower())
+
+    @patch("urllib.request.urlopen")
+    def test_validate_anthropic_valid_key(self, mock_urlopen):
+        """Anthropic: valid key returns True against /v1/models endpoint."""
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        is_valid, error = validate_api_key("sk-ant-valid", provider="anthropic")
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+
+        # Verify the correct Anthropic endpoint was hit
+        req = mock_urlopen.call_args[0][0]
+        self.assertIn("api.anthropic.com", req.full_url)
+        self.assertEqual(req.get_header("X-api-key"), "sk-ant-valid")
+
+    @patch("urllib.request.urlopen")
+    def test_validate_anthropic_invalid_key_401(self, mock_urlopen):
+        """Anthropic: invalid key returns False with 401 message."""
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url="", code=401, msg="Unauthorized", hdrs=None, fp=None
+        )
+
+        is_valid, error = validate_api_key("sk-ant-bad", provider="anthropic")
+        self.assertFalse(is_valid)
+        self.assertIn("401", error)
 
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -8,7 +8,7 @@ import time
 import urllib.request
 import urllib.error
 
-from iara.models import PROVIDER_CONFIGS, FREE_MODELS
+from iara.models import PROVIDER_CONFIGS, FREE_MODELS, SUGGESTED_MODELS
 from iara.auth import normalize_provider, SUPPORTED_PROVIDERS
 from iara.prompt import generate_system_prompt
 from iara.diff_compressor import DiffCompressor
@@ -200,10 +200,15 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
         models_to_try = [env_model]
 
     if not models_to_try:
-        return (
-            "❌ No model configured for provider '%s'. "
-            "Set IARA_MODEL or model.preferred in .iara.json."
-        ) % provider
+        # Fall back to iterating through all suggested models for this provider
+        default_models = list(SUGGESTED_MODELS.get(provider, []))
+        if default_models:
+            models_to_try = default_models
+        else:
+            return (
+                "❌ No model configured for provider '%s'. "
+                "Set IARA_MODEL or model.preferred in .iara.json."
+            ) % provider
 
     errors = []
     total = len(models_to_try)

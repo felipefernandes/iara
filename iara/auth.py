@@ -84,34 +84,51 @@ def save_global_config(config):
 
 def validate_api_key(api_key, provider="openrouter"):
     """
-    Validate an API key by calling OpenRouter /api/v1/models.
+    Validate an API key by probing the provider's models endpoint.
     Returns (is_valid, error_message).
     """
     import urllib.request
     import urllib.error
 
-    provider = normalize_provider(provider)
-    if provider != "openrouter":
-        return True, None
+    if not api_key:
+        return False, "API key cannot be empty"
+    if not str(api_key).strip():
+        return False, "API key cannot be whitespace-only empty string"
+    if len(str(api_key).strip()) < 5:
+        return False, "API key is suspiciously short"
 
-    url = "https://openrouter.ai/api/v1/models"
-    headers = {
-        "Authorization": "Bearer " + api_key,
-        "HTTP-Referer": "https://github.com/felipefernandes/iara",
-        "X-Title": "Iara Code Reviewer"
-    }
+    provider = normalize_provider(provider)
+
+    if provider == "openrouter":
+        url = "https://openrouter.ai/api/v1/models"
+        headers = {
+            "Authorization": "Bearer " + api_key,
+            "HTTP-Referer": "https://github.com/felipefernandes/iara",
+            "X-Title": "Iara Code Reviewer"
+        }
+    elif provider == "anthropic":
+        url = "https://api.anthropic.com/v1/models"
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2024-06-01"
+        }
+    else:
+        # openai, gemini, groq — skip live validation (require a real call to verify)
+        return True, None
 
     try:
         req = urllib.request.Request(url, headers=headers, method="GET")
         with urllib.request.urlopen(req, timeout=15) as response:
             if response.status == 200:
                 return True, None
-            return False, "Unexpected status: %d" % response.status
+            return False, "Unexpected status OK but not 200: %s" % response.status
     except urllib.error.HTTPError as e:
-        if e.code == 401:
-            return False, "Invalid API key (401 Unauthorized)"
-        return False, "HTTP Error %d" % e.code
+        if e.code in (401, 403):
+            return False, f"Invalid API Key (HTTP {e.code})"
+        return False, f"Provider service issue (HTTP {e.code}): {e.reason}"
     except urllib.error.URLError as e:
-        return False, "Connection error: %s" % e.reason
+        return False, f"Network error during validation: {e.reason}"
     except Exception as e:
-        return False, "Unexpected error: %s" % e
+        return False, "Unexpected validation error: %s" % e
+
+

@@ -23,7 +23,7 @@ PROVIDER_CONFIGS = {
     "anthropic": {
         "base_url": "https://api.anthropic.com/v1/messages",
         "auth_type": "x-api-key",
-        "extra_headers": {"anthropic-version": "2023-06-01"}
+        "extra_headers": {"anthropic-version": "2024-06-01"}
     },
     "groq": {
         "base_url": "https://api.groq.com/openai/v1/chat/completions",
@@ -36,7 +36,7 @@ SUGGESTED_MODELS = {
     "openrouter": ["openrouter/free", "anthropic/claude-opus-4-5", "openai/gpt-4o"],
     "openai": ["gpt-4o", "gpt-4.5-preview", "o1"],
     "gemini": ["gemini-2.5-flash", "gemini-2.5-pro"],
-    "anthropic": ["claude-opus-4-5-20250929", "claude-sonnet-4-5-20250929"],
+    "anthropic": ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
     "groq": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"]
 }
 

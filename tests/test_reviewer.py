@@ -307,10 +307,16 @@ class TestReviewCode(unittest.TestCase):
         self.assertIn("Could not review", result)
         mock_review.assert_called_once()
 
-    def test_no_model_configured_for_paid_provider(self):
+    @patch("iara.reviewer.time.sleep")
+    @patch("iara.reviewer.review_code_with_model", side_effect=Exception("invalid API key"))
+    def test_no_model_configured_for_paid_provider_uses_default(self, mock_review, mock_sleep):
+        """When no preferred model set, reviewer falls back to iterates all SUGGESTED_MODELS default."""
         config = self._base_config(provider="openai", fallback=False)
         result = review_code("diff content", "sk-test", config)
-        self.assertIn("No model configured", result)
+        # Should have attempted the review using the default models iterating until failure
+        self.assertTrue(mock_review.call_count > 0)
+        self.assertIn("Could not review", result)
+
 
     def test_reviewer_with_rag_enabled_but_no_context(self):
         """Test that reviewer works when RAG is enabled but returns no results."""
