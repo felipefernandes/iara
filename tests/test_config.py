@@ -88,10 +88,10 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config["ci"]["review_mode"], "summary")
 
     def test_ci_config_invalid_platform(self):
-        """Test that invalid platform raises ValueError."""
+        """Test that truly unsupported platform values raise ValueError."""
         custom_config = {
             "ci": {
-                "platform": "bitbucket"
+                "platform": "jenkins"
             }
         }
         with open(self.config_path, 'w') as f:
@@ -100,6 +100,15 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             load_config(self.config_path)
         self.assertIn("Invalid ci.platform", str(cm.exception))
+
+    def test_ci_config_known_platforms_accepted(self):
+        """Test that all known platforms pass validation without error."""
+        for platform in ("github", "gitlab", "azure-devops", "bitbucket"):
+            custom_config = {"ci": {"platform": platform}}
+            with open(self.config_path, 'w') as f:
+                json.dump(custom_config, f)
+            config = load_config(self.config_path)
+            self.assertEqual(config["ci"]["platform"], platform)
 
     def test_ci_config_invalid_review_mode(self):
         """Test that invalid review_mode raises ValueError."""
@@ -117,7 +126,7 @@ class TestConfig(unittest.TestCase):
         self.assertIn("Invalid ci.review_mode", str(cm.exception))
 
     def test_ci_config_inline_without_platform(self):
-        """Test that inline mode without platform raises ValueError."""
+        """Test that inline mode without explicit platform is valid (auto-detected at runtime)."""
         custom_config = {
             "ci": {
                 "review_mode": "inline"
@@ -126,9 +135,10 @@ class TestConfig(unittest.TestCase):
         with open(self.config_path, 'w') as f:
             json.dump(custom_config, f)
 
-        with self.assertRaises(ValueError) as cm:
-            load_config(self.config_path)
-        self.assertIn("inline mode requires ci.platform", str(cm.exception))
+        # Should not raise — platform is resolved at runtime via detect_platform()
+        config = load_config(self.config_path)
+        self.assertEqual(config["ci"]["review_mode"], "inline")
+        self.assertIsNone(config["ci"]["platform"])
 
     def test_ci_config_platform_without_review_mode(self):
         """Test that platform without review_mode defaults to summary."""
