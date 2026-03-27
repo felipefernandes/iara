@@ -1,6 +1,7 @@
 """Platform adapter factory for creating platform-specific adapters."""
 
 import logging
+import os
 from typing import Optional
 from .base import PlatformAdapter
 from .github import GitHubAdapter
@@ -8,6 +9,23 @@ from .gitlab import GitLabAdapter
 
 
 logger = logging.getLogger(__name__)
+
+
+def detect_platform() -> Optional[str]:
+    """Detect the current CI platform from standard environment variables.
+
+    Reads well-known CI environment variables to determine which platform
+    adapter to use when ci.platform is not explicitly set in .iara.json.
+
+    Returns:
+        Platform name string ('github' or 'gitlab'), or None if the runtime
+        environment is not a recognized CI platform.
+    """
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return "github"
+    if os.environ.get("GITLAB_CI") == "true":
+        return "gitlab"
+    return None
 
 
 def get_adapter(

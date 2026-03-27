@@ -75,8 +75,8 @@ def validate_ci_config(config):
     platform = ci.get("platform")
     review_mode = ci.get("review_mode", "summary")
 
-    # Validate platform
-    valid_platforms = [None, "github", "gitlab"]
+    # Validate platform (None = auto-detect at runtime from CI environment)
+    valid_platforms = [None, "github", "gitlab", "azure-devops", "bitbucket"]
     if platform not in valid_platforms:
         raise ValueError(
             f"Invalid ci.platform: '{platform}'. "
@@ -91,12 +91,7 @@ def validate_ci_config(config):
             f"Must be one of: {', '.join(valid_modes)}"
         )
 
-    # Inline mode requires platform
-    if review_mode == "inline" and platform is None:
-        raise ValueError(
-            "inline mode requires ci.platform to be specified. "
-            "Set ci.platform to 'github' or 'gitlab' in .iara.json"
-        )
+    # Platform is optional — resolved at runtime via detect_platform() when absent
 
     return True
 

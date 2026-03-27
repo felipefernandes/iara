@@ -43,7 +43,6 @@ Add a `ci` section to your `.iara.json` file:
 ```json
 {
   "ci": {
-    "platform": "github",
     "review_mode": "inline"
   },
   "project": {
@@ -53,12 +52,14 @@ Add a `ci` section to your `.iara.json` file:
 }
 ```
 
+The platform is **auto-detected** from the CI environment (`GITHUB_ACTIONS` or `GITLAB_CI` env vars). No hardcoding required — the same `.iara.json` works on GitHub Actions and GitLab CI without modification.
+
 **Configuration Options:**
 
-- **`platform`**: CI platform where Iara will post comments
-  - `"github"` — For GitHub Actions
-  - `"gitlab"` — For GitLab CI
-  - `null` or omitted — No platform specified (default behavior)
+- **`platform`** *(optional override)*: Force a specific platform adapter
+  - `"github"` — GitHub Actions
+  - `"gitlab"` — GitLab CI (cloud or self-hosted)
+  - Omit this field to let Iara auto-detect from the environment
 
 - **`review_mode`**: How Iara posts review feedback
   - `"summary"` — Single comment with all feedback (default)
@@ -87,9 +88,9 @@ variables:
 
 ### Behavior Notes
 
-- **Inline mode requires `platform` to be specified** — Setting `review_mode: inline` without `platform` will fail validation
+- **Platform is auto-detected** — Iara reads `GITHUB_ACTIONS` or `GITLAB_CI` env vars at runtime; `ci.platform` in `.iara.json` is an optional override for edge cases
 - **Graceful fallback** — If inline comment posting fails (e.g., JSON parsing error, API failure), Iara automatically falls back to summary mode
-- **Platform compatibility** — If your platform is not GitHub or GitLab, Iara defaults to summary mode with a warning
+- **Platform compatibility** — If the platform cannot be determined, `post_comment` exits with an error and a clear message
 
 ---
 
@@ -218,7 +219,7 @@ Go to **Settings > CI/CD > Variables** and add:
 
 ### 2. Add to `.gitlab-ci.yml`
 
-**Using the pre-built Docker image (faster, recommended):**
+**Using the pre-built Docker image (recommended — no install overhead):**
 
 ```yaml
 stages:
@@ -227,38 +228,31 @@ stages:
 iara_code_review:
   stage: review
   image: ghcr.io/felipefernandes/iara:latest
+  variables:
+    OPENROUTER_API_KEY: $OPENROUTER_API_KEY
+    GITLAB_TOKEN: $GITLAB_TOKEN
   script:
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
-    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
-    - echo "$REVIEW"
-    - |
-      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
-        echo "$REVIEW" | python3 -m iara.post_comment \
-          --token "$GITLAB_TOKEN" \
-          --repo "$CI_PROJECT_PATH" \
-          --pr "$CI_MERGE_REQUEST_IID"
-      fi
+    - git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA | iara --post-comment
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
-**Alternative: Using pip install (slower):**
+The platform (`gitlab`) and all CI variables (`CI_PROJECT_PATH`, `CI_MERGE_REQUEST_IID`, `CI_COMMIT_SHA`) are detected automatically — no aliases or boilerplate required.
+
+> **Self-hosted GitLab CE/EE**: the API base URL is read from `CI_SERVER_URL`, which GitLab CI always injects. No extra configuration needed.
+
+**Alternative: Using pip install (slower, ~1-2 min extra per run):**
 
 ```yaml
-stages:
-  - review
-
 iara_code_review:
   stage: review
   image: python:3.11-slim
   script:
-    - apt-get update && apt-get install -y --no-install-recommends git curl
-    - pip install iara-reviewer
+    - pip install iara-reviewer -q
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
-    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-    - iara
+    - git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA | iara --post-comment
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -266,6 +260,7 @@ iara_code_review:
 
 Iara will automatically:
 
+- Detect the GitLab CI environment
 - Review the Merge Request diff
 - Post a comment with the review result on the MR
 
@@ -315,35 +310,29 @@ jobs:
           export PR_DIFF=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3.diff" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}")
-          iara | python3 -m iara.post_comment \
-            --token "$GITHUB_TOKEN" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pr "${{ github.event.pull_request.number }}"
+          iara --post-comment
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 ```
 
 ### Usage in GitLab CI
 
 ```yaml
-stages:
-  - review
-
 iara_code_review:
   stage: review
   image: ghcr.io/felipefernandes/iara:latest
+  variables:
+    OPENROUTER_API_KEY: $OPENROUTER_API_KEY
+    GITLAB_TOKEN: $GITLAB_TOKEN
   script:
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
-    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-    - REVIEW=$(iara) || true
-    - echo "$REVIEW"
-    - echo "$REVIEW" | python3 -m iara.post_comment --token "$GITLAB_TOKEN" --repo "$CI_PROJECT_PATH" --pr "$CI_MERGE_REQUEST_IID"
-  only:
-    - merge_requests
-  variables:
-    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-    GITLAB_TOKEN: ${GITLAB_TOKEN}
+    - git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA | iara --post-comment
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
 ### Usage in Jenkins, CircleCI, or Any Docker-enabled CI

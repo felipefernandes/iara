@@ -56,6 +56,23 @@ The `.iara.json` file contains:
 - **`review`**: Review focus areas and indexer settings
 - **`model`**: LLM provider and model preferences
 - **`language`**: Review output language
+- **`ci`** *(optional)*: CI/CD integration settings
+
+### CI Block
+
+```json
+{
+  "ci": {
+    "review_mode": "inline",
+    "platform": "gitlab"
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `review_mode` | string | `"summary"` | `"summary"` = single MR/PR comment; `"inline"` = comments anchored to code lines |
+| `platform` | string | auto-detected | Optional override: `"github"` or `"gitlab"`. Omit to let Iara detect from the CI environment (`GITHUB_ACTIONS` or `GITLAB_CI` env vars). The same `.iara.json` works on any platform without modification. |
 
 ---
 
