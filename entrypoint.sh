@@ -13,14 +13,11 @@ if [ "${GITLAB_CI:-}" = "true" ]; then
   echo "GitLab CI detected — using native GitLab CI flow."
 
   # Validate API key presence (provider auto-detected by iara CLI)
-  API_KEY_SET=false
-  for var in OPENROUTER_API_KEY OPENAI_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY GROQ_API_KEY; do
-    if [ -n "${!var}" ]; then
-      API_KEY_SET=true
-      break
-    fi
-  done
-  if [ "$API_KEY_SET" = "false" ]; then
+  if [ -z "${OPENROUTER_API_KEY:-}" ] && \
+     [ -z "${OPENAI_API_KEY:-}" ] && \
+     [ -z "${GEMINI_API_KEY:-}" ] && \
+     [ -z "${ANTHROPIC_API_KEY:-}" ] && \
+     [ -z "${GROQ_API_KEY:-}" ]; then
     echo "ERROR: No API key found. Set OPENROUTER_API_KEY (or another provider key) in CI/CD variables."
     exit 1
   fi

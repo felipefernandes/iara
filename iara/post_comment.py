@@ -32,7 +32,7 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
 
         # Get required environment variables — auto-detect GitLab CI native vars
         if os.environ.get("GITLAB_CI") == "true":
-            token = os.environ.get("GITLAB_TOKEN") or os.environ.get("GITHUB_TOKEN")
+            token = (os.environ.get("GITLAB_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
             repo = os.environ.get("CI_PROJECT_PATH") or os.environ.get("REPO")
             pr_number = os.environ.get("CI_MERGE_REQUEST_IID") or os.environ.get("PR_NUMBER")
             commit_sha = os.environ.get("CI_COMMIT_SHA") or os.environ.get("HEAD_SHA")
@@ -40,7 +40,7 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
                 platform = "gitlab"
                 logger.info("GitLab CI detected, inferring platform 'gitlab' from environment")
         else:
-            token = os.environ.get("GITHUB_TOKEN")
+            token = (os.environ.get("GITHUB_TOKEN") or "").strip()
             repo = os.environ.get("REPO")
             pr_number = os.environ.get("PR_NUMBER")
             commit_sha = os.environ.get("HEAD_SHA") or os.environ.get("GITHUB_SHA")
