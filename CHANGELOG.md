@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.10.0] - 2026-03-27
+
+### GitLab CI — Native Support (Issue #82)
+
+- **Docker image works natively in GitLab CI**: `entrypoint.sh` detects `GITLAB_CI=true` and forks to a dedicated flow — reads API keys directly from the environment, generates the diff via `git diff` (no GitHub API call), posts the comment. No `pip install` per run.
+- **Platform auto-detection**: Iara now reads `GITHUB_ACTIONS` or `GITLAB_CI` to select the right adapter automatically. `ci.platform` in `.iara.json` is now an optional override for edge cases. The same config works on GitHub Actions, GitLab CI cloud, and self-hosted GitLab CE/EE without modification.
+- **`ci.platform` no longer required for inline mode**: removing the field from `.iara.json` is valid; platform is resolved at runtime via environment detection.
+- **Self-hosted GitLab support**: `GitLabAdapter` reads `CI_SERVER_URL` (injected automatically by GitLab CI) as the API base URL.
+- **Simplified GitLab CI template** — 2 variables, 2 script lines:
+  ```yaml
+  variables:
+    OPENROUTER_API_KEY: $OPENROUTER_API_KEY
+    GITLAB_TOKEN: $GITLAB_TOKEN
+  script:
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA | iara --post-comment
+  ```
+
+---
+
 ## [1.9.0] - 2026-03-06
 
 ### 🔧 Improvements

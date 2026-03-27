@@ -1,6 +1,5 @@
 {
   "ci": {
-    "platform": "github",
     "review_mode": "inline"
   },
   "project": {

@@ -5,7 +5,7 @@ import logging
 import os
 from iara.config import load_config
 from iara.parsers.inline_parser import parse_inline_review
-from iara.platforms.factory import get_adapter
+from iara.platforms.factory import get_adapter, detect_platform
 from iara.filters import filter_false_positives
 
 
@@ -30,16 +30,20 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
         platform = ci_config.get("platform")
         review_mode = ci_config.get("review_mode", "summary")
 
-        # Get required environment variables — auto-detect GitLab CI native vars
-        if os.environ.get("GITLAB_CI") == "true":
+        # Auto-detect platform from CI environment when not explicitly configured
+        if platform is None:
+            platform = detect_platform()
+            if platform:
+                logger.info(f"Auto-detected CI platform: '{platform}'")
+
+        # Resolve credentials and identifiers from platform-native env vars
+        if platform == "gitlab":
             token = (os.environ.get("GITLAB_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
             repo = os.environ.get("CI_PROJECT_PATH") or os.environ.get("REPO")
             pr_number = os.environ.get("CI_MERGE_REQUEST_IID") or os.environ.get("PR_NUMBER")
             commit_sha = os.environ.get("CI_COMMIT_SHA") or os.environ.get("HEAD_SHA")
-            if platform is None:
-                platform = "gitlab"
-                logger.info("GitLab CI detected, inferring platform 'gitlab' from environment")
         else:
+            # GitHub or fallback
             token = (os.environ.get("GITHUB_TOKEN") or "").strip()
             repo = os.environ.get("REPO")
             pr_number = os.environ.get("PR_NUMBER")
@@ -57,15 +61,12 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
             logger.error("PR/MR number not set (CI_MERGE_REQUEST_IID or PR_NUMBER)")
             return 1
 
-        # Infer platform from environment if not configured
         if platform is None:
-            # Assume GitHub if running in GitHub Actions (GITHUB_TOKEN present)
-            if token and repo:
-                platform = "github"
-                logger.info("No platform configured, inferring 'github' from environment")
-            else:
-                logger.error("No platform configured and cannot infer from environment")
-                return 1
+            logger.error(
+                "Could not determine CI platform. Set ci.platform in .iara.json "
+                "or run inside a supported CI environment (GITHUB_ACTIONS=true or GITLAB_CI=true)"
+            )
+            return 1
 
         # Summary mode (default) - always use platform adapter
         if review_mode == "summary":
