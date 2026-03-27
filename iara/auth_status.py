@@ -55,16 +55,18 @@ def run_auth_status():
     print("  Source:   %s" % source_labels.get(source, source))
     print()
 
+    VALIDATED_PROVIDERS = {"openrouter", "anthropic"}
+
     # Validate
-    if provider == "openrouter":
+    if provider in VALIDATED_PROVIDERS:
         print("  Validating...", end=" ", flush=True)
         is_valid, error = validate_api_key(api_key, provider)
         if is_valid:
-            print("VALID")
+            print("VALID ✅")
         else:
-            print("INVALID (%s)" % error)
+            print("INVALID (%s) ❌" % error)
             sys.exit(1)
     else:
-        print("  Validation: SKIPPED (provider not validated locally)")
+        print("  Validation: SKIPPED (live check not available for provider '%s')" % provider)
 
     print()

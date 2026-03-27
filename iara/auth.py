@@ -84,22 +84,30 @@ def save_global_config(config):
 
 def validate_api_key(api_key, provider="openrouter"):
     """
-    Validate an API key by calling OpenRouter /api/v1/models.
+    Validate an API key by probing the provider's models endpoint.
     Returns (is_valid, error_message).
     """
     import urllib.request
     import urllib.error
 
     provider = normalize_provider(provider)
-    if provider != "openrouter":
-        return True, None
 
-    url = "https://openrouter.ai/api/v1/models"
-    headers = {
-        "Authorization": "Bearer " + api_key,
-        "HTTP-Referer": "https://github.com/felipefernandes/iara",
-        "X-Title": "Iara Code Reviewer"
-    }
+    if provider == "openrouter":
+        url = "https://openrouter.ai/api/v1/models"
+        headers = {
+            "Authorization": "Bearer " + api_key,
+            "HTTP-Referer": "https://github.com/felipefernandes/iara",
+            "X-Title": "Iara Code Reviewer"
+        }
+    elif provider == "anthropic":
+        url = "https://api.anthropic.com/v1/models"
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2024-06-01"
+        }
+    else:
+        # openai, gemini, groq — skip live validation (require a real call to verify)
+        return True, None
 
     try:
         req = urllib.request.Request(url, headers=headers, method="GET")
@@ -110,6 +118,8 @@ def validate_api_key(api_key, provider="openrouter"):
     except urllib.error.HTTPError as e:
         if e.code == 401:
             return False, "Invalid API key (401 Unauthorized)"
+        if e.code == 403:
+            return False, "Forbidden (403) — check key permissions"
         return False, "HTTP Error %d" % e.code
     except urllib.error.URLError as e:
         return False, "Connection error: %s" % e.reason
