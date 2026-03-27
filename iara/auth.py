@@ -90,6 +90,9 @@ def validate_api_key(api_key, provider="openrouter"):
     import urllib.request
     import urllib.error
 
+    if not api_key or not str(api_key).strip():
+        return False, "API key cannot be empty"
+
     provider = normalize_provider(provider)
 
     if provider == "openrouter":
@@ -114,14 +117,19 @@ def validate_api_key(api_key, provider="openrouter"):
         with urllib.request.urlopen(req, timeout=15) as response:
             if response.status == 200:
                 return True, None
-            return False, "Unexpected status: %d" % response.status
+            # Treat other statuses gracefully (might be degraded service but valid key)
+            return True, None
     except urllib.error.HTTPError as e:
         if e.code == 401:
             return False, "Invalid API key (401 Unauthorized)"
         if e.code == 403:
             return False, "Forbidden (403) — check key permissions"
-        return False, "HTTP Error %d" % e.code
+        # 500, 502, 503, 429 etc -> treat as "temporarily unavailable but key might be valid"
+        # We return True so the wizard doesn't trap the user in an endless loop
+        return True, None
     except urllib.error.URLError as e:
-        return False, "Connection error: %s" % e.reason
+        # Network down, DNS failure, timeout — key unverified but not proven invalid
+        return True, None
     except Exception as e:
         return False, "Unexpected error: %s" % e
+
