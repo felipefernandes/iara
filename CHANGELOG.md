@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.11.0] - 2026-03-27
+
+### ✨ New Features
+
+#### Anthropic (Claude) First-Class Support (Issue #85)
+- **Live Validation**: Added explicit `x-api-key` validation with fallback behaviors.
+- **Model Fallbacks**: Implemented smart fallback defaults for Anthropic suggested models (`claude-3-opus`, `claude-3-haiku`, etc.) automatically resolving to active models if one hits a rate limit or service interruption.
+- **Headers & Capabilities**: Ensured code complies with Anthropic's versioning requirements (`anthropic-version`: 2024-06-01).
+
+---
+
 ## [1.10.0] - 2026-03-27
 
 ### GitLab CI — Native Support (Issue #82)
