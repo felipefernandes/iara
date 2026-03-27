@@ -5,6 +5,68 @@ set -e
 # Iara Code Reviewer - GitHub Action Entrypoint
 # ============================================
 
+# --- GitLab CI Native Flow ---
+# When running inside GitLab CI, skip GitHub Actions INPUT_* extraction entirely.
+# Variables are already injected by GitLab CI as-is; overwriting them with empty
+# INPUT_* values would cause validation to fail immediately.
+if [ "${GITLAB_CI:-}" = "true" ]; then
+  echo "GitLab CI detected — using native GitLab CI flow."
+
+  # Validate API key presence (provider auto-detected by iara CLI)
+  if [ -z "${OPENROUTER_API_KEY:-}" ] && \
+     [ -z "${OPENAI_API_KEY:-}" ] && \
+     [ -z "${GEMINI_API_KEY:-}" ] && \
+     [ -z "${ANTHROPIC_API_KEY:-}" ] && \
+     [ -z "${GROQ_API_KEY:-}" ]; then
+    echo "ERROR: No API key found. Set OPENROUTER_API_KEY (or another provider key) in CI/CD variables."
+    exit 1
+  fi
+
+  # Only run on merge request events
+  if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
+    echo "Not a merge request event (CI_MERGE_REQUEST_IID is empty). Skipping review."
+    exit 0
+  fi
+
+  echo "Reviewing MR !${CI_MERGE_REQUEST_IID} in ${CI_PROJECT_PATH}"
+
+  # Generate diff via git (no external API call needed)
+  git fetch origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}" 2>/dev/null || true
+  export PR_DIFF
+  PR_DIFF=$(git diff "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...${CI_COMMIT_SHA}" 2>/dev/null || true)
+
+  if [ -z "$PR_DIFF" ]; then
+    echo "WARNING: Empty diff. Skipping review."
+    exit 0
+  fi
+
+  # Run Iara review
+  REVIEW=$(PYTHONPATH=/app python3 -m iara 2>/tmp/iara_stderr.txt || true)
+
+  if [ -s /tmp/iara_stderr.txt ]; then
+    cat /tmp/iara_stderr.txt
+  fi
+
+  if [ -z "$REVIEW" ]; then
+    echo "WARNING: Iara produced no output."
+    exit 0
+  fi
+
+  echo "$REVIEW"
+
+  # Post comment to MR if GITLAB_TOKEN is configured
+  if [ -n "${GITLAB_TOKEN:-}" ]; then
+    echo "Posting review comment to MR !${CI_MERGE_REQUEST_IID}..."
+    echo "$REVIEW" | PYTHONPATH=/app python3 -m iara.post_comment - && \
+      echo "Review posted successfully." || \
+      echo "WARNING: Failed to post review comment."
+  else
+    echo "GITLAB_TOKEN not set — skipping comment posting."
+  fi
+
+  exit 0
+fi
+
 # --- Input Variables (from action.yml inputs) ---
 OPENROUTER_API_KEY="${INPUT_OPENROUTER_API_KEY}"
 OPENAI_API_KEY="${INPUT_OPENAI_API_KEY}"

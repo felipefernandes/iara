@@ -1,8 +1,9 @@
 """GitLab platform adapter for posting code review comments."""
 
 import logging
+import os
 import requests
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .base import PlatformAdapter
 
 
@@ -16,7 +17,7 @@ class GitLabAdapter(PlatformAdapter):
     and Merge Request Notes API for summary comments.
     """
 
-    def __init__(self, token: str, repo: str, pr_id: str, base_sha: str = None, head_sha: str = None):
+    def __init__(self, token: str, repo: str, pr_id: str, base_sha: str = None, head_sha: str = None, base_url: Optional[str] = None):
         """Initialize GitLab adapter.
 
         Args:
@@ -25,11 +26,16 @@ class GitLabAdapter(PlatformAdapter):
             pr_id: Merge request IID (internal ID)
             base_sha: Base commit SHA (target branch HEAD)
             head_sha: Head commit SHA (source branch HEAD)
+            base_url: GitLab API base URL (defaults to CI_SERVER_URL env var or https://gitlab.com)
         """
         super().__init__(token, repo, pr_id)
         self.base_sha = base_sha
         self.head_sha = head_sha
-        self.base_url = "https://gitlab.com/api/v4"
+        if base_url:
+            self.base_url = base_url.rstrip("/") + "/api/v4"
+        else:
+            server_url = os.environ.get("CI_SERVER_URL", "https://gitlab.com").rstrip("/")
+            self.base_url = f"{server_url}/api/v4"
         self.headers = {
             "PRIVATE-TOKEN": token,
             "Content-Type": "application/json"

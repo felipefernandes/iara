@@ -30,22 +30,31 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
         platform = ci_config.get("platform")
         review_mode = ci_config.get("review_mode", "summary")
 
-        # Get required environment variables
-        token = os.environ.get("GITHUB_TOKEN")
-        repo = os.environ.get("REPO")
-        pr_number = os.environ.get("PR_NUMBER")
-        commit_sha = os.environ.get("HEAD_SHA") or os.environ.get("GITHUB_SHA")
+        # Get required environment variables — auto-detect GitLab CI native vars
+        if os.environ.get("GITLAB_CI") == "true":
+            token = (os.environ.get("GITLAB_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+            repo = os.environ.get("CI_PROJECT_PATH") or os.environ.get("REPO")
+            pr_number = os.environ.get("CI_MERGE_REQUEST_IID") or os.environ.get("PR_NUMBER")
+            commit_sha = os.environ.get("CI_COMMIT_SHA") or os.environ.get("HEAD_SHA")
+            if platform is None:
+                platform = "gitlab"
+                logger.info("GitLab CI detected, inferring platform 'gitlab' from environment")
+        else:
+            token = (os.environ.get("GITHUB_TOKEN") or "").strip()
+            repo = os.environ.get("REPO")
+            pr_number = os.environ.get("PR_NUMBER")
+            commit_sha = os.environ.get("HEAD_SHA") or os.environ.get("GITHUB_SHA")
 
         if not token:
-            logger.error("GITHUB_TOKEN environment variable not set")
+            logger.error("Authentication token not set (GITLAB_TOKEN or GITHUB_TOKEN)")
             return 1
 
         if not repo:
-            logger.error("REPO environment variable not set")
+            logger.error("Repository not set (CI_PROJECT_PATH or REPO)")
             return 1
 
         if not pr_number:
-            logger.error("PR_NUMBER environment variable not set")
+            logger.error("PR/MR number not set (CI_MERGE_REQUEST_IID or PR_NUMBER)")
             return 1
 
         # Infer platform from environment if not configured
