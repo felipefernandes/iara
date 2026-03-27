@@ -4,40 +4,22 @@
 # Variaveis necessarias (Settings > CI/CD > Variables):
 #   - OPENROUTER_API_KEY: Chave da API OpenRouter (obrigatoria)
 #   - GITLAB_TOKEN: Personal/Project Access Token com scope 'api' (para comentarios no MR)
+#
+# Suporta instancias auto-hospedadas: a URL do servidor e detectada automaticamente
+# via CI_SERVER_URL (variavel predefinida do GitLab CI).
 
 stages:
   - review
 
 iara_code_review:
   stage: review
-  # 🐳 Usa imagem Docker pre-construida para execucao rapida (sem pip install)
   image: ghcr.io/felipefernandes/iara:latest
+  variables:
+    OPENROUTER_API_KEY: $OPENROUTER_API_KEY
+    GITLAB_TOKEN: $GITLAB_TOKEN
   script:
-    # Gera o diff do Merge Request
     - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
-    - export PR_DIFF=$(git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA)
-
-    # Executa a review
-    - REVIEW=$(iara 2>/tmp/iara_stderr.txt) || true
-    - cat /tmp/iara_stderr.txt || true
-    - echo "$REVIEW"
-
-    # Posta comentario no Merge Request usando o novo post_comment module
-    - |
-      if [ -n "$REVIEW" ] && [ -n "$GITLAB_TOKEN" ]; then
-        echo "Postando review no MR #${CI_MERGE_REQUEST_IID}..."
-        echo "$REVIEW" | python3 -m iara.post_comment \
-          --token "$GITLAB_TOKEN" \
-          --repo "$CI_PROJECT_PATH" \
-          --pr "$CI_MERGE_REQUEST_IID"
-        if [ $? -eq 0 ]; then
-          echo "Review postada com sucesso no MR #${CI_MERGE_REQUEST_IID}."
-        else
-          echo "Falha ao postar comentario"
-        fi
-      else
-        echo "Comentario no MR desabilitado (GITLAB_TOKEN nao configurado ou review vazia)."
-      fi
+    - git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...$CI_COMMIT_SHA | iara --post-comment
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

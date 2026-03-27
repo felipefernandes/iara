@@ -29,6 +29,8 @@ def main():
     # Top-level arguments (backward compatibility)
     parser.add_argument("--scan", help="Directory to scan (Scan Mode)", default=None)
     parser.add_argument("--diff", help="Diff file (optional, reads from stdin by default)", default=None)
+    parser.add_argument("--post-comment", action="store_true",
+                        help="Post the review as a PR/MR comment after generating it")
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command")
@@ -155,3 +157,7 @@ def main():
 
     review = review_code(diff, api_key, config)
     print(review)
+
+    if args.post_comment:
+        from iara.post_comment import post_review_comments
+        sys.exit(post_review_comments(review, diff=diff))
