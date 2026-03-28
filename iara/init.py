@@ -5,7 +5,7 @@ import sys
 import json
 import getpass
 
-from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS, _load_global_config, get_ollama_base_url
+from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS, _load_global_config, get_ollama_base_url, OLLAMA_CONNECT_TIMEOUT
 from iara.config import save_config
 from iara.prompt import LANGUAGE_MAP
 
@@ -68,7 +68,7 @@ def _step_ollama_setup():
 
     try:
         req = urllib.request.Request(base_url + "/api/tags", method="GET")
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=OLLAMA_CONNECT_TIMEOUT) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             models = [m["name"] for m in data.get("models", [])]
         print("OK")

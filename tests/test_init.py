@@ -2,9 +2,9 @@ import unittest
 import json
 import os
 import tempfile
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
-from iara.init import run_init, _step_api_key, _step_project_config, _step_review_config, _step_language, _step_provider, _mask_key
+from iara.init import run_init, _step_api_key, _step_project_config, _step_review_config, _step_language, _step_provider, _mask_key, _step_ollama_setup
 
 
 class TestMaskKey(unittest.TestCase):
@@ -142,6 +142,115 @@ class TestRunInit(unittest.TestCase):
             "openrouter_api_key": "sk-or-existing",
             "api_key": "sk-or-existing"
         })
+
+
+class TestStepProviderOllama(unittest.TestCase):
+    @patch("builtins.input", return_value="ollama")
+    def test_ollama_accepted(self, mock_input):
+        self.assertEqual(_step_provider(), "ollama")
+
+
+class TestStepApiKeyOllama(unittest.TestCase):
+    @patch("builtins.print")
+    @patch("urllib.request.urlopen")
+    def test_ollama_skips_api_key_returns_none(self, mock_urlopen, mock_print):
+        """_step_api_key for ollama calls _step_ollama_setup and returns None."""
+        import json
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({"models": [{"name": "qwen2.5-coder:7b"}]}).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = _step_api_key("ollama")
+        self.assertIsNone(result)
+
+
+class TestStepOllamaSetup(unittest.TestCase):
+    @patch("builtins.print")
+    @patch("urllib.request.urlopen")
+    def test_ollama_running_lists_models(self, mock_urlopen, mock_print):
+        """When Ollama is running, available models are printed."""
+        import json
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(
+            {"models": [{"name": "qwen2.5-coder:7b"}, {"name": "codellama:13b"}]}
+        ).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = _step_ollama_setup()
+        self.assertIsNone(result)
+        printed = " ".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("qwen2.5-coder:7b", printed)
+
+    @patch("builtins.print")
+    @patch("urllib.request.urlopen")
+    def test_ollama_not_running_prints_install_instructions(self, mock_urlopen, mock_print):
+        """When Ollama is not running, install instructions are shown."""
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
+
+        result = _step_ollama_setup()
+        self.assertIsNone(result)
+        printed = " ".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("ollama serve", printed)
+
+    @patch("builtins.print")
+    @patch("urllib.request.urlopen")
+    def test_ollama_running_no_models_shows_pull_hint(self, mock_urlopen, mock_print):
+        """When Ollama is running but no models are installed, shows pull hint."""
+        import json
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({"models": []}).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        _step_ollama_setup()
+        printed = " ".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("ollama pull", printed)
+
+
+class TestRunInitOllama(unittest.TestCase):
+    @patch("builtins.print")
+    @patch("iara.init.save_global_config")
+    @patch("iara.init.save_config")
+    @patch("urllib.request.urlopen")
+    @patch("builtins.input", side_effect=[
+        "en",           # language
+        "ollama",       # provider
+        "My Project",   # project name
+        "Python",       # tech stack
+        "A test",       # description
+        "",             # focus areas (default)
+        "",             # ignore patterns (default)
+    ])
+    def test_ollama_full_flow_no_api_key(self, mock_input, mock_urlopen,
+                                         mock_save_config, mock_save_global, mock_print):
+        """Full flow with Ollama: no API key prompt, no key saved to global config."""
+        import json
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(
+            {"models": [{"name": "qwen2.5-coder:7b"}]}
+        ).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("os.getcwd", return_value=tmpdir):
+                run_init()
+
+        mock_save_config.assert_called_once()
+        local_config = mock_save_config.call_args[0][0]
+        self.assertEqual(local_config["model"]["provider"], "ollama")
+
+        # No ollama_api_key should be saved
+        if mock_save_global.called:
+            saved = mock_save_global.call_args[0][0]
+            self.assertNotIn("ollama_api_key", saved)
 
 
 if __name__ == "__main__":

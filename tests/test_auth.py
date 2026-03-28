@@ -4,7 +4,10 @@ import os
 import tempfile
 from unittest.mock import patch, MagicMock
 
-from iara.auth import resolve_api_key, validate_api_key, save_global_config, _load_global_config, normalize_provider
+from iara.auth import (
+    resolve_api_key, validate_api_key, save_global_config, _load_global_config,
+    normalize_provider, get_ollama_base_url, NO_AUTH_PROVIDERS, OLLAMA_CONNECT_TIMEOUT,
+)
 
 
 class TestResolveApiKey(unittest.TestCase):
@@ -179,6 +182,67 @@ class TestValidateApiKey(unittest.TestCase):
         is_valid, error = validate_api_key("sk-ant-bad", provider="anthropic")
         self.assertFalse(is_valid)
         self.assertIn("401", error)
+
+
+class TestOllamaAuth(unittest.TestCase):
+    def test_ollama_in_no_auth_providers(self):
+        self.assertIn("ollama", NO_AUTH_PROVIDERS)
+
+    def test_ollama_connect_timeout_is_int(self):
+        self.assertIsInstance(OLLAMA_CONNECT_TIMEOUT, int)
+        self.assertGreater(OLLAMA_CONNECT_TIMEOUT, 0)
+
+    def test_get_ollama_base_url_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            os.environ.pop("OLLAMA_BASE_URL", None)
+            self.assertEqual(get_ollama_base_url(), "http://localhost:11434")
+
+    @patch.dict(os.environ, {"OLLAMA_BASE_URL": "http://gpu-server:11434"})
+    def test_get_ollama_base_url_env_override(self):
+        self.assertEqual(get_ollama_base_url(), "http://gpu-server:11434")
+
+    def test_resolve_api_key_ollama_returns_none(self):
+        key, source = resolve_api_key("ollama")
+        self.assertIsNone(key)
+        self.assertEqual(source, "none")
+
+    def test_normalize_provider_ollama_valid(self):
+        self.assertEqual(normalize_provider("ollama"), "ollama")
+
+    @patch("urllib.request.urlopen")
+    def test_validate_api_key_ollama_running(self, mock_urlopen):
+        """validate_api_key pings /api/tags; returns True when Ollama is running."""
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        is_valid, error = validate_api_key(None, provider="ollama")
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+        # Verify it hit /api/tags
+        req = mock_urlopen.call_args[0][0]
+        self.assertIn("/api/tags", req.full_url)
+
+    @patch("urllib.request.urlopen")
+    def test_validate_api_key_ollama_not_running(self, mock_urlopen):
+        """validate_api_key returns False with friendly message when Ollama not running."""
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
+
+        is_valid, error = validate_api_key(None, provider="ollama")
+        self.assertFalse(is_valid)
+        self.assertIn("not running", error.lower())
+
+    @patch("urllib.request.urlopen")
+    def test_validate_api_key_ollama_unexpected_error(self, mock_urlopen):
+        """validate_api_key returns False on unexpected errors."""
+        mock_urlopen.side_effect = Exception("socket timeout")
+
+        is_valid, error = validate_api_key(None, provider="ollama")
+        self.assertFalse(is_valid)
+        self.assertIsNotNone(error)
 
 
 if __name__ == "__main__":

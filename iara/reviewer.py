@@ -9,7 +9,7 @@ import urllib.request
 import urllib.error
 
 from iara.models import PROVIDER_CONFIGS, FREE_MODELS, SUGGESTED_MODELS
-from iara.auth import normalize_provider, SUPPORTED_PROVIDERS, get_ollama_base_url, NO_AUTH_PROVIDERS
+from iara.auth import normalize_provider, SUPPORTED_PROVIDERS, get_ollama_base_url, NO_AUTH_PROVIDERS, OLLAMA_CONNECT_TIMEOUT
 from iara.prompt import generate_system_prompt
 from iara.diff_compressor import DiffCompressor
 
@@ -113,7 +113,7 @@ def _get_ollama_models(base_url: str) -> list:
     try:
         url = base_url + "/api/tags"
         req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=OLLAMA_CONNECT_TIMEOUT) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return [m["name"] for m in data.get("models", [])]
     except Exception:
@@ -156,6 +156,10 @@ def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: s
         # Extract friendly message from JSON error response
         friendly_msg = _extract_error_message(e.code, error_body, model)
         raise Exception(friendly_msg)
+    except urllib.error.URLError as e:
+        if provider == "ollama" and "connection refused" in str(e.reason).lower():
+            raise Exception("Ollama is not running — start it with: ollama serve")
+        raise
 
 
 def review_code(diff: str, api_key: str, config: dict) -> str:

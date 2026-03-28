@@ -19,6 +19,9 @@ PROVIDER_ENV_VARS = {
 # Providers that require no API key (local/self-hosted)
 NO_AUTH_PROVIDERS = {"ollama"}
 
+# Timeout (seconds) for Ollama connectivity checks
+OLLAMA_CONNECT_TIMEOUT = 5
+
 SUPPORTED_PROVIDERS = set(PROVIDER_ENV_VARS.keys()) | NO_AUTH_PROVIDERS
 
 
@@ -109,7 +112,7 @@ def validate_api_key(api_key, provider="openrouter"):
         url = base_url + "/api/tags"
         try:
             req = urllib.request.Request(url, method="GET")
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with urllib.request.urlopen(req, timeout=OLLAMA_CONNECT_TIMEOUT) as response:
                 if response.status == 200:
                     return True, None
                 return False, "Unexpected status: %s" % response.status
