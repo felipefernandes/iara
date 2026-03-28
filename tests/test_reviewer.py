@@ -9,6 +9,7 @@ from iara.reviewer import (
     _build_payload,
     _extract_content,
     _extract_error_message,
+    _get_ollama_models,
     review_code_with_model,
     review_code,
 )
@@ -371,6 +372,114 @@ class TestReviewCode(unittest.TestCase):
             self.assertIn("LGTM", result)
             # Ensure retrieval was attempted
             mock_retriever.retrieve_context_for_diff.assert_called()
+
+
+# ── Ollama-specific tests ───────────────────────────────────────────────
+
+
+class TestBuildHeadersOllama(unittest.TestCase):
+    def test_no_auth_header_for_ollama(self):
+        headers = _build_headers(None, "ollama")
+        self.assertNotIn("Authorization", headers)
+        self.assertNotIn("x-api-key", headers)
+        self.assertIn("Content-Type", headers)
+
+
+class TestExtractContentOllama(unittest.TestCase):
+    def test_extract_content_ollama(self):
+        result = {"model": "qwen2.5-coder:7b", "message": {"role": "assistant", "content": "LGTM"}, "done": True}
+        self.assertEqual(_extract_content(result, "ollama"), "LGTM")
+
+    def test_extract_content_ollama_missing_content(self):
+        with self.assertRaises(ValueError):
+            _extract_content({"message": {}}, "ollama")
+
+    def test_extract_content_ollama_empty_message(self):
+        with self.assertRaises(ValueError):
+            _extract_content({}, "ollama")
+
+
+class TestGetOllamaModels(unittest.TestCase):
+    @patch("urllib.request.urlopen")
+    def test_returns_model_names(self, mock_urlopen):
+        mock_urlopen.return_value = MockResponse(
+            {"models": [{"name": "qwen2.5-coder:7b"}, {"name": "codellama:13b"}]}
+        )
+        result = _get_ollama_models("http://localhost:11434")
+        self.assertEqual(result, ["qwen2.5-coder:7b", "codellama:13b"])
+
+    @patch("urllib.request.urlopen")
+    def test_returns_empty_list_on_error(self, mock_urlopen):
+        mock_urlopen.side_effect = Exception("Connection refused")
+        result = _get_ollama_models("http://localhost:11434")
+        self.assertEqual(result, [])
+
+    @patch("urllib.request.urlopen")
+    def test_returns_empty_list_when_no_models(self, mock_urlopen):
+        mock_urlopen.return_value = MockResponse({"models": []})
+        result = _get_ollama_models("http://localhost:11434")
+        self.assertEqual(result, [])
+
+
+class TestReviewCodeWithModelOllama(unittest.TestCase):
+    @patch("urllib.request.urlopen")
+    def test_ollama_success(self, mock_urlopen):
+        mock_urlopen.return_value = MockResponse(
+            {"model": "qwen2.5-coder:7b", "message": {"role": "assistant", "content": "Looks good"}, "done": True}
+        )
+        content = review_code_with_model("diff", None, "qwen2.5-coder:7b", "sys", "ollama")
+        self.assertEqual(content, "Looks good")
+
+    @patch("urllib.request.urlopen")
+    def test_ollama_connection_refused_friendly_error(self, mock_urlopen):
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
+        with self.assertRaises(Exception) as ctx:
+            review_code_with_model("diff", None, "qwen2.5-coder:7b", "sys", "ollama")
+        self.assertIn("ollama serve", str(ctx.exception).lower())
+
+    @patch.dict("os.environ", {"OLLAMA_BASE_URL": "http://remote:11434"})
+    @patch("urllib.request.urlopen")
+    def test_ollama_uses_env_base_url(self, mock_urlopen):
+        mock_urlopen.return_value = MockResponse(
+            {"message": {"role": "assistant", "content": "OK"}, "done": True}
+        )
+        review_code_with_model("diff", None, "llama3.1:8b", "sys", "ollama")
+        req = mock_urlopen.call_args[0][0]
+        self.assertIn("remote:11434", req.full_url)
+
+
+class TestReviewCodeOllama(unittest.TestCase):
+    def _ollama_config(self, model=None):
+        config = {
+            "project": {"name": "Test", "tech_stack": ["Python"]},
+            "review": {"focus_areas": ["Security"]},
+            "model": {"provider": "ollama", "fallback_enabled": False},
+            "language": "en",
+        }
+        if model:
+            config["model"]["preferred"] = model
+        return config
+
+    @patch("iara.reviewer._get_ollama_models", return_value=["qwen2.5-coder:7b"])
+    @patch("iara.reviewer.review_code_with_model", return_value="LGTM")
+    def test_ollama_auto_detects_models(self, mock_review, mock_models):
+        result = review_code("diff content", None, self._ollama_config())
+        self.assertEqual(result, "LGTM")
+        mock_review.assert_called_once()
+        self.assertEqual(mock_review.call_args[0][2], "qwen2.5-coder:7b")
+
+    @patch("iara.reviewer._get_ollama_models", return_value=[])
+    def test_ollama_not_running_returns_friendly_error(self, mock_models):
+        result = review_code("diff content", None, self._ollama_config())
+        self.assertIn("ollama serve", result.lower())
+
+    @patch("iara.reviewer.review_code_with_model", return_value="LGTM")
+    def test_ollama_uses_preferred_model_when_set(self, mock_review):
+        config = self._ollama_config(model="codellama:13b")
+        result = review_code("diff content", None, config)
+        self.assertEqual(result, "LGTM")
+        self.assertEqual(mock_review.call_args[0][2], "codellama:13b")
 
 
 if __name__ == "__main__":

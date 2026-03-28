@@ -29,6 +29,11 @@ PROVIDER_CONFIGS = {
         "base_url": "https://api.groq.com/openai/v1/chat/completions",
         "auth_type": "bearer",
         "extra_headers": {}
+    },
+    "ollama": {
+        "base_url": "http://localhost:11434/api/chat",  # overridden dynamically via OLLAMA_BASE_URL
+        "auth_type": "none",
+        "extra_headers": {}
     }
 }
 
@@ -37,7 +42,8 @@ SUGGESTED_MODELS = {
     "openai": ["gpt-4o", "gpt-4.5-preview", "o1"],
     "gemini": ["gemini-2.5-flash", "gemini-2.5-pro"],
     "anthropic": ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
-    "groq": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"]
+    "groq": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    "ollama": ["qwen2.5-coder:7b", "codellama:13b", "llama3.1:8b", "deepseek-coder:6.7b"]
 }
 
 # OpenRouter free models list — openrouter/free is the meta-router that auto-selects

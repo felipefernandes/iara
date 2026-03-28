@@ -177,8 +177,78 @@ You can add your own custom patterns to extend filtering for project-specific co
 | Google Gemini | `gemini` | `gemini-2.5-flash`, `gemini-2.5-pro` |
 | Anthropic Claude | `anthropic` | `claude-opus-4-5-20250929`, `claude-sonnet-4-5-20250929` |
 | Groq | `groq` | `llama-3.3-70b-versatile`, `llama-3.1-70b-versatile`, `mixtral-8x7b-32768` |
+| Ollama (local) | `ollama` | `qwen2.5-coder:7b`, `codellama:13b`, `llama3.1:8b` — any locally installed model |
 
-> **Note**: Smart fallback to free models is only available for OpenRouter. When using `openai`, `gemini`, `anthropic`, or `groq`, set `"fallback_enabled": false`.
+> **Note**: Smart fallback to free models is only available for OpenRouter. When using `openai`, `gemini`, `anthropic`, or `groq`, set `"fallback_enabled": false`. Ollama requires no API key.
+
+### Ollama — Local LLM Setup
+
+[Ollama](https://ollama.com/) lets you run LLMs 100% locally — no API key, no data leaving your machine, no cost.
+
+**Install Ollama:**
+
+```bash
+# Linux / macOS
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Windows: download from https://ollama.com/download
+```
+
+**Pull a model:**
+
+```bash
+ollama pull qwen2.5-coder:7b      # Recommended: strong coder, ~5 GB
+ollama pull codellama:13b          # Meta CodeLlama 13B, ~8 GB
+ollama pull llama3.1:8b            # General purpose, ~5 GB
+```
+
+**Hardware requirements:**
+
+| Model | VRAM / RAM | Quality | Speed |
+| :--- | :--- | :--- | :--- |
+| `qwen2.5-coder:7b` | 5–6 GB | Very Good | Fast |
+| `codellama:13b` | 8–10 GB | Very Good | Medium |
+| `llama3.1:8b` | 6–8 GB | Good | Fast |
+| `deepseek-coder:6.7b` | 5–6 GB | Very Good | Fast |
+| `codellama:34b` | 20+ GB | Excellent | Slow |
+
+Works with CPU-only (slower) or GPU (NVIDIA/AMD/Apple Silicon).
+
+**Configure Iara to use Ollama:**
+
+```bash
+# Option 1: interactive setup (recommended)
+iara init
+# → select "ollama" as provider (no API key needed)
+
+# Option 2: environment variables
+export IARA_PROVIDER="ollama"
+export IARA_MODEL="qwen2.5-coder:7b"
+
+# Option 3: .iara.json
+```
+
+```json
+{
+  "model": {
+    "provider": "ollama",
+    "preferred": "qwen2.5-coder:7b",
+    "fallback_enabled": false
+  }
+}
+```
+
+**Custom Ollama endpoint** (e.g. remote server):
+
+```bash
+export OLLAMA_BASE_URL="http://my-server:11434"
+```
+
+**Troubleshooting:**
+
+- `❌ Ollama is not running` → run `ollama serve` in a terminal
+- `model not available` → run `ollama pull <model-name>` first
+- Slow inference → normal for CPU-only; use GPU for better performance
 
 The `language` field controls the review output language. Supported values: `en`, `pt-br`, `es`, `fr`, `de`, `ja`, `zh`, `ko`, `ru`, or any language the LLM understands.
 

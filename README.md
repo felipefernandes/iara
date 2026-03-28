@@ -29,7 +29,7 @@ Iara is an automated, project-agnostic, configurable code review tool designed t
 ## 🚀 Features
 
 - **Agnostic**: Configure your project context (Tech Stack, Rules) via JSON.
-- **Multi-Provider**: Connect directly to OpenRouter, OpenAI, Google Gemini, Anthropic Claude, or Groq.
+- **Multi-Provider**: Connect directly to OpenRouter, OpenAI, Google Gemini, Anthropic Claude, Groq, or **Ollama** (local, no API key).
 - **Smart Fallback**: Automatically tries free models if the preferred one fails (OpenRouter only).
 - **Rules-Based (Static)**: Identifies dangerous patterns instantly without spending tokens (e.g., `GetComponent` in loops in Unity).
 - **LLM-Based (Intelligent)**: Uses AI to understand logic, security, and context, going beyond syntax.
@@ -83,8 +83,8 @@ iara init
 The wizard guides you through **5 steps**:
 
 1. **Language** — Choose the review output language (en, pt-br, es, fr, etc.)
-2. **Provider** — Choose your LLM provider: `openrouter` (default, free), `openai`, `gemini`, `anthropic`, or `groq`
-3. **API Key** — Enter the key for the chosen provider (validated and saved to `~/.iara/config.json`)
+2. **Provider** — Choose your LLM provider: `openrouter` (default, free), `openai`, `gemini`, `anthropic`, `groq`, or `ollama` (local)
+3. **API Key** — Enter the key for the chosen provider (skipped for Ollama; validated and saved to `~/.iara/config.json`)
 4. **Project** — Name, tech stack, description
 5. **Preferences** — Focus areas (Security, Performance, etc.)
 
@@ -193,6 +193,7 @@ git diff | iara
 
 | Provider | Training on API Data | Data Retention | Enterprise Options | Best For |
 |----------|---------------------|----------------|-------------------|----------|
+| **Ollama** (local) | ✅ None — code never leaves your machine | None | ✅ Yes | Regulated / sensitive code |
 | **Anthropic** | ❌ No | Temporary | ✅ Yes | Sensitive code |
 | **OpenAI** | ⚠️ Opt-out required | 30 days | ✅ Yes | General use |
 | **Gemini** | ⚠️ Varies | Not documented | ✅ Yes | General use |
@@ -203,8 +204,8 @@ git diff | iara
 
 - **Open Source Projects**: Any provider (code is already public)
 - **Private Projects (non-sensitive)**: Anthropic or Groq
-- **Sensitive/Proprietary Code**: Anthropic Enterprise or self-hosted LLM
-- **Regulated Industries (HIPAA, PCI-DSS)**: Self-hosted LLM only (e.g., Ollama - see [Issue #76](https://github.com/felipefernandes/iara/issues/76))
+- **Sensitive/Proprietary Code**: Anthropic Enterprise or Ollama (local)
+- **Regulated Industries (HIPAA, PCI-DSS, GDPR)**: Ollama — zero data leakage, free, works offline
 
 For detailed privacy information and self-hosted options, see **[Privacy & Security Guide](docs/privacy-security.md)**.
 

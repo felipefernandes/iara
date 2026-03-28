@@ -9,7 +9,7 @@ import urllib.request
 import urllib.error
 
 from iara.models import PROVIDER_CONFIGS, FREE_MODELS, SUGGESTED_MODELS
-from iara.auth import normalize_provider, SUPPORTED_PROVIDERS
+from iara.auth import normalize_provider, SUPPORTED_PROVIDERS, get_ollama_base_url, NO_AUTH_PROVIDERS, OLLAMA_CONNECT_TIMEOUT
 from iara.prompt import generate_system_prompt
 from iara.diff_compressor import DiffCompressor
 
@@ -52,8 +52,9 @@ def _build_headers(api_key: str, provider: str) -> dict:
 
     if provider_cfg["auth_type"] == "bearer":
         headers["Authorization"] = f"Bearer {api_key}"
-    else:
+    elif provider_cfg["auth_type"] == "x-api-key":
         headers["x-api-key"] = api_key
+    # auth_type "none": no auth header (e.g. Ollama)
 
     headers.update(provider_cfg["extra_headers"])
     return headers
@@ -91,6 +92,13 @@ def _extract_content(result: dict, provider: str) -> str:
                 return text
         raise ValueError("API returned success but no 'content' text.")
 
+    if provider == "ollama":
+        msg = result.get("message", {})
+        content = msg.get("content")
+        if content:
+            return content
+        raise ValueError("Ollama returned success but no 'message.content'.")
+
     if "choices" in result and len(result["choices"]) > 0:
         content = result["choices"][0]["message"]["content"]
         if content is None:
@@ -100,15 +108,33 @@ def _extract_content(result: dict, provider: str) -> str:
     raise ValueError("API returned success but no 'choices'.")
 
 
+def _get_ollama_models(base_url: str) -> list:
+    """Fetch available models from Ollama /api/tags. Returns [] on error."""
+    try:
+        url = base_url + "/api/tags"
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=OLLAMA_CONNECT_TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return [m["name"] for m in data.get("models", [])]
+    except Exception:
+        return []
+
+
 def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: str, provider: str) -> str:
     """Try to review code with a specific model."""
     provider_cfg = PROVIDER_CONFIGS.get(provider, PROVIDER_CONFIGS["openrouter"])
     payload = _build_payload(diff, model, system_prompt, provider)
     headers = _build_headers(api_key, provider)
 
+    # Ollama base_url is resolved dynamically from OLLAMA_BASE_URL env var
+    if provider == "ollama":
+        base_url = get_ollama_base_url() + "/api/chat"
+    else:
+        base_url = provider_cfg["base_url"]
+
     try:
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(provider_cfg["base_url"], data=data, headers=headers)
+        req = urllib.request.Request(base_url, data=data, headers=headers)
 
         with urllib.request.urlopen(req, timeout=60) as response:
             result = json.loads(response.read().decode("utf-8"))
@@ -130,6 +156,10 @@ def review_code_with_model(diff: str, api_key: str, model: str, system_prompt: s
         # Extract friendly message from JSON error response
         friendly_msg = _extract_error_message(e.code, error_body, model)
         raise Exception(friendly_msg)
+    except urllib.error.URLError as e:
+        if provider == "ollama" and "connection refused" in str(e.reason).lower():
+            raise Exception("Ollama is not running — start it with: ollama serve")
+        raise
 
 
 def review_code(diff: str, api_key: str, config: dict) -> str:
@@ -204,15 +234,28 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
         models_to_try = [env_model]
 
     if not models_to_try:
-        # Fall back to iterating through all suggested models for this provider
-        default_models = list(SUGGESTED_MODELS.get(provider, []))
-        if default_models:
-            models_to_try = default_models
+        # Ollama: auto-detect locally available models
+        if provider == "ollama":
+            ollama_base = get_ollama_base_url()
+            available = _get_ollama_models(ollama_base)
+            if available:
+                models_to_try = available
+            else:
+                return (
+                    "❌ Ollama is not running or has no models installed.\n"
+                    "Start Ollama with: ollama serve\n"
+                    "Then pull a model: ollama pull qwen2.5-coder:7b"
+                )
         else:
-            return (
-                "❌ No model configured for provider '%s'. "
-                "Set IARA_MODEL or model.preferred in .iara.json."
-            ) % provider
+            # Fall back to iterating through all suggested models for this provider
+            default_models = list(SUGGESTED_MODELS.get(provider, []))
+            if default_models:
+                models_to_try = default_models
+            else:
+                return (
+                    "❌ No model configured for provider '%s'. "
+                    "Set IARA_MODEL or model.preferred in .iara.json."
+                ) % provider
 
     errors = []
     total = len(models_to_try)
