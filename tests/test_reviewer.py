@@ -318,6 +318,31 @@ class TestReviewCode(unittest.TestCase):
         self.assertIn("Could not review", result)
 
 
+    @patch("iara.reviewer.time.sleep")
+    @patch("iara.reviewer.review_code_with_model")
+    def test_anthropic_fallback_when_preferred_model_fails(self, mock_review, mock_sleep):
+        """Anthropic with fallback_enabled=True should try SUGGESTED_MODELS after preferred fails."""
+        mock_review.side_effect = [Exception("model overloaded"), "Fallback worked"]
+        config = self._base_config(provider="anthropic", model="claude-opus-4-5", fallback=True)
+        result = review_code("diff content", "sk-ant-test", config)
+        self.assertEqual(result, "Fallback worked")
+        # First call: preferred model; second call: first fallback from SUGGESTED_MODELS
+        self.assertEqual(mock_review.call_count, 2)
+        first_model = mock_review.call_args_list[0][0][2]
+        second_model = mock_review.call_args_list[1][0][2]
+        self.assertEqual(first_model, "claude-opus-4-5")
+        self.assertNotEqual(second_model, first_model)
+
+    @patch("iara.reviewer.time.sleep")
+    @patch("iara.reviewer.review_code_with_model")
+    def test_anthropic_no_fallback_when_disabled(self, mock_review, mock_sleep):
+        """Anthropic with fallback_enabled=False should NOT fall back to other models."""
+        mock_review.side_effect = Exception("model failed")
+        config = self._base_config(provider="anthropic", model="claude-opus-4-5", fallback=False)
+        result = review_code("diff content", "sk-ant-test", config)
+        self.assertIn("Could not review", result)
+        self.assertEqual(mock_review.call_count, 1)
+
     def test_reviewer_with_rag_enabled_but_no_context(self):
         """Test that reviewer works when RAG is enabled but returns no results."""
         config = {

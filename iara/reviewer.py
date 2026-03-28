@@ -189,8 +189,12 @@ def review_code(diff: str, api_key: str, config: dict) -> str:
     if preferred_model:
         models_to_try.append(preferred_model)
 
-    if (fallback_enabled or not preferred_model) and provider == "openrouter":
+    if provider == "openrouter" and (fallback_enabled or not preferred_model):
         for m in FREE_MODELS:
+            if m not in models_to_try:
+                models_to_try.append(m)
+    elif provider != "openrouter" and fallback_enabled and preferred_model:
+        for m in SUGGESTED_MODELS.get(provider, []):
             if m not in models_to_try:
                 models_to_try.append(m)
 
