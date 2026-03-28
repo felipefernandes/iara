@@ -2,7 +2,7 @@
 
 import os
 import sys
-from iara.auth import resolve_api_key, validate_api_key, PROVIDER_ENV_VARS, normalize_provider, SUPPORTED_PROVIDERS
+from iara.auth import resolve_api_key, validate_api_key, PROVIDER_ENV_VARS, normalize_provider, SUPPORTED_PROVIDERS, NO_AUTH_PROVIDERS, get_ollama_base_url
 from iara.config import load_config
 
 
@@ -19,6 +19,31 @@ def run_auth_status():
         print("  Supported providers: %s" % supported)
         print()
         sys.exit(1)
+
+    # Ollama: no API key needed — show connectivity status instead
+    if provider in NO_AUTH_PROVIDERS:
+        from iara.reviewer import _get_ollama_models
+        base_url = get_ollama_base_url()
+        print()
+        print("  Iara Auth Status")
+        print("  " + "=" * 20)
+        print()
+        print("  Provider:  ollama (local)")
+        print("  Endpoint:  %s" % base_url)
+        print()
+        print("  Checking Ollama...", end=" ", flush=True)
+        models = _get_ollama_models(base_url)
+        if models:
+            print("RUNNING ✅")
+            print()
+            print("  Available models: %s" % ", ".join(models[:5]))
+        else:
+            print("NOT RUNNING ❌")
+            print()
+            print("  Start Ollama with: ollama serve")
+            print("  Pull a model with: ollama pull qwen2.5-coder:7b")
+        print()
+        return
 
     api_key, source = resolve_api_key(provider)
 

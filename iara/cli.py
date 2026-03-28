@@ -118,8 +118,9 @@ def main():
         print("Supported providers: %s" % supported, file=sys.stderr)
         sys.exit(1)
 
+    from iara.auth import NO_AUTH_PROVIDERS
     api_key, source = resolve_api_key(provider)
-    if not api_key:
+    if not api_key and provider not in NO_AUTH_PROVIDERS:
         env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
         print("❌ Error: API key not configured.", file=sys.stderr)
         print("Run 'iara init' to set up, or set %s." % env_var, file=sys.stderr)
