@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.11.1] - 2026-03-28
+
+### 🐛 Bug Fixes
+
+#### Anthropic Integration Fixes (PR #87, #88)
+- **Fixed `anthropic-version` header**: Corrected invalid version `2024-06-01` to `2023-06-01` — the only valid value accepted by the Anthropic API (all models were failing with "not a valid version").
+- **Fixed model fallback for Anthropic**: `fallback_enabled: true` now correctly falls back to `SUGGESTED_MODELS` (e.g. `claude-sonnet-4-5`, `claude-haiku-4-5`) when the preferred model fails. Previously, fallback only worked for OpenRouter.
+
+### 🧪 Tests
+- Added `test_anthropic_fallback_when_preferred_model_fails` — verifies fallback chain for Anthropic provider.
+- Added `test_anthropic_no_fallback_when_disabled` — ensures `fallback_enabled: false` is respected.
+
+---
+
 ## [1.11.0] - 2026-03-27
 
 ### ✨ New Features
