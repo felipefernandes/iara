@@ -26,7 +26,8 @@
     "review_mode": "inline"
   },
   "model": {
-    "preferred": null,
+    "provider": "anthropic",
+    "preferred": "claude-sonnet-4-5",
     "fallback_enabled": true
   },
   "language": "en"

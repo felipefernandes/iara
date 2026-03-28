@@ -110,7 +110,7 @@ def validate_api_key(api_key, provider="openrouter"):
         url = "https://api.anthropic.com/v1/models"
         headers = {
             "x-api-key": api_key,
-            "anthropic-version": "2024-06-01"
+            "anthropic-version": "2023-06-01"
         }
     else:
         # openai, gemini, groq — skip live validation (require a real call to verify)
