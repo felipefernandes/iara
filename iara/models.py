@@ -23,7 +23,7 @@ PROVIDER_CONFIGS = {
     "anthropic": {
         "base_url": "https://api.anthropic.com/v1/messages",
         "auth_type": "x-api-key",
-        "extra_headers": {"anthropic-version": "2024-06-01"}
+        "extra_headers": {"anthropic-version": "2023-06-01"}
     },
     "groq": {
         "base_url": "https://api.groq.com/openai/v1/chat/completions",
