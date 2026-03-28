@@ -16,7 +16,10 @@ PROVIDER_ENV_VARS = {
     "groq": "GROQ_API_KEY",
 }
 
-SUPPORTED_PROVIDERS = set(PROVIDER_ENV_VARS.keys())
+# Providers that require no API key (local/self-hosted)
+NO_AUTH_PROVIDERS = {"ollama"}
+
+SUPPORTED_PROVIDERS = set(PROVIDER_ENV_VARS.keys()) | NO_AUTH_PROVIDERS
 
 
 def normalize_provider(provider, default="openrouter"):
@@ -28,6 +31,11 @@ def normalize_provider(provider, default="openrouter"):
     return provider if provider in SUPPORTED_PROVIDERS else None
 
 
+def get_ollama_base_url() -> str:
+    """Return the Ollama base URL from env var or default."""
+    return os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+
+
 def resolve_api_key(provider="openrouter"):
     """
     Resolve API key by priority order.
@@ -35,6 +43,9 @@ def resolve_api_key(provider="openrouter"):
     """
     provider = normalize_provider(provider)
     if not provider:
+        return None, "none"
+    # No-auth providers (e.g. Ollama) never require an API key
+    if provider in NO_AUTH_PROVIDERS:
         return None, "none"
     # 1. Environment variable (highest priority - CI/CD)
     env_var = PROVIDER_ENV_VARS.get(provider, "OPENROUTER_API_KEY")
@@ -90,14 +101,29 @@ def validate_api_key(api_key, provider="openrouter"):
     import urllib.request
     import urllib.error
 
+    provider = normalize_provider(provider)
+
+    # Ollama: validate by pinging /api/tags (no API key needed)
+    if provider == "ollama":
+        base_url = get_ollama_base_url()
+        url = base_url + "/api/tags"
+        try:
+            req = urllib.request.Request(url, method="GET")
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    return True, None
+                return False, "Unexpected status: %s" % response.status
+        except urllib.error.URLError as e:
+            return False, "Ollama is not running at %s (%s)" % (base_url, e.reason)
+        except Exception as e:
+            return False, "Could not reach Ollama: %s" % e
+
     if not api_key:
         return False, "API key cannot be empty"
     if not str(api_key).strip():
         return False, "API key cannot be whitespace-only empty string"
     if len(str(api_key).strip()) < 5:
         return False, "API key is suspiciously short"
-
-    provider = normalize_provider(provider)
 
     if provider == "openrouter":
         url = "https://openrouter.ai/api/v1/models"

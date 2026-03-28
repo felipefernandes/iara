@@ -5,7 +5,7 @@ import sys
 import json
 import getpass
 
-from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS, _load_global_config
+from iara.auth import validate_api_key, save_global_config, resolve_api_key, PROVIDER_ENV_VARS, _load_global_config, get_ollama_base_url
 from iara.config import save_config
 from iara.prompt import LANGUAGE_MAP
 
@@ -17,7 +17,7 @@ KNOWN_FOCUS_AREAS = ["Logic", "Security", "Performance", "Clean Code",
                      "Error Handling", "Testing"]
 
 SUGGESTED_LANGUAGES = ["en", "pt-br", "es", "fr", "de", "ja", "zh"]
-PROVIDER_OPTIONS = ["openrouter", "openai", "gemini", "anthropic", "groq"]
+PROVIDER_OPTIONS = ["openrouter", "openai", "gemini", "anthropic", "groq", "ollama"]
 PROVIDER_KEY_URLS = {
     "openrouter": "https://openrouter.ai/keys",
     "openai": "https://platform.openai.com/api-keys",
@@ -39,7 +39,7 @@ def run_init():
     # --- Step 2: Provider ---
     provider = _step_provider()
 
-    # --- Step 3: API Key ---
+    # --- Step 3: API Key (or Ollama setup) ---
     api_key = _step_api_key(provider)
 
     # --- Step 4: Project Config ---
@@ -55,8 +55,47 @@ def run_init():
     _show_next_steps()
 
 
+def _step_ollama_setup():
+    """Check Ollama connectivity and show available local models. No API key needed."""
+    import urllib.request
+    import urllib.error
+    import json
+
+    print()
+    print("  Step 3: Ollama Setup (no API key required)")
+    base_url = get_ollama_base_url()
+    print("  Checking Ollama at %s..." % base_url, end=" ", flush=True)
+
+    try:
+        req = urllib.request.Request(base_url + "/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            models = [m["name"] for m in data.get("models", [])]
+        print("OK")
+        if models:
+            print("  Available models:")
+            for m in models:
+                print("    - %s" % m)
+        else:
+            print("  No models installed yet. Pull one with: ollama pull qwen2.5-coder:7b")
+    except urllib.error.URLError:
+        print("NOT RUNNING")
+        print()
+        print("  ⚠️  Ollama is not running. To install and start it:")
+        print("     curl -fsSL https://ollama.com/install.sh | sh")
+        print("     ollama serve")
+        print("     ollama pull qwen2.5-coder:7b")
+        print()
+        print("  Continuing setup. Make sure Ollama is running before using iara.")
+
+    return None  # no API key for Ollama
+
+
 def _step_api_key(provider):
     """Prompt and validate the API key."""
+    if provider == "ollama":
+        return _step_ollama_setup()
+
     print()
     print("  Step 3: API Key")
     key_url = PROVIDER_KEY_URLS.get(provider, PROVIDER_KEY_URLS["openrouter"])
@@ -120,7 +159,7 @@ def _step_provider():
     print("  Step 2: LLM Provider")
     print()
 
-    options = "openrouter (default, free), openai, gemini, anthropic, groq"
+    options = "openrouter (default, free), openai, gemini, anthropic, groq, ollama (local)"
     print("  Options: %s" % options)
 
     while True:
@@ -207,11 +246,15 @@ def _save_configs(api_key, provider, language, project, review):
 
     # 2. Save API key in global config (merge with existing to preserve other providers' keys)
     global_config = _load_global_config()
-    global_config[f"{provider}_api_key"] = api_key
-    if provider == "openrouter":
-        global_config["api_key"] = api_key
-    save_global_config(global_config)
-    print("  Saved API key to ~/.iara/config.json")
+    if api_key is not None:
+        global_config[f"{provider}_api_key"] = api_key
+        if provider == "openrouter":
+            global_config["api_key"] = api_key
+        save_global_config(global_config)
+        print("  Saved API key to ~/.iara/config.json")
+    else:
+        # No-auth provider (e.g. Ollama): still persist global config to keep other keys intact
+        save_global_config(global_config)
 
 
 def _show_next_steps():
