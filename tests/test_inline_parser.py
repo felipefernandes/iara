@@ -134,7 +134,7 @@ class TestInlineParser(unittest.TestCase):
         self.assertIn("'line' must be integer", str(cm.exception))
 
     def test_parse_comment_invalid_severity(self):
-        """Test that invalid severity value raises ValueError."""
+        """Test that invalid severity value is coerced to 'other'."""
         json_text = json.dumps({
             "summary": "Test",
             "comments": [
@@ -146,10 +146,9 @@ class TestInlineParser(unittest.TestCase):
                 }
             ]
         })
-
-        with self.assertRaises(ValueError) as cm:
-            parse_inline_review(json_text)
-        self.assertIn("invalid severity", str(cm.exception))
+        
+        result = parse_inline_review(json_text)
+        self.assertEqual(result["comments"][0]["severity"], "other")
 
     def test_parse_comment_negative_line(self):
         """Test that negative line number raises ValueError."""
