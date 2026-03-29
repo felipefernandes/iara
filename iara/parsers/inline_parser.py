@@ -103,6 +103,9 @@ def parse_inline_review(text: str) -> Dict[str, Any]:
             )
 
         # Validate severity value (case-insensitive)
+        # Note: We intentionally coerce invalid severities to "other" instead of raising an exception.
+        # This prevents open-source LLMs that hallucinate unsupported severities (e.g., "config")
+        # from crashing the entire inline review parsing process.
         if comment["severity"].lower() not in VALID_SEVERITIES:
             logger.warning(
                 f"Comment [{i}] invalid severity: '{comment['severity']}'. Coercing to 'other'."
