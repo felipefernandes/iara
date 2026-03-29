@@ -37,14 +37,16 @@ def parse_inline_review(text: str) -> Dict[str, Any]:
     Raises:
         ValueError: If JSON is invalid or schema doesn't match
     """
-    # Strip markdown code blocks if present (e.g., ```json\n{...}\n```)
-    # Use regex to handle variations: ```json, ```, ````json, etc.
-    text = text.strip()
-    # Remove opening fence: ```json or ``` or ````json (optional language identifier)
-    text = re.sub(r'^```+(?:json)?\s*\n?', '', text, flags=re.IGNORECASE)
-    # Remove closing fence: ``` or ````
-    text = re.sub(r'\n?```+\s*$', '', text)
-    text = text.strip()
+    # Extract JSON if it's wrapped in markdown blocks ANYWHERE in the text
+    match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, flags=re.IGNORECASE | re.DOTALL)
+    if match:
+        text = match.group(1).strip()
+    else:
+        # Fallback: Extract from the first '{' to the last '}'
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            text = text[start:end+1]
 
     # Try to parse JSON
     try:
@@ -101,11 +103,14 @@ def parse_inline_review(text: str) -> Dict[str, Any]:
             )
 
         # Validate severity value (case-insensitive)
+        # Note: We intentionally coerce invalid severities to "other" instead of raising an exception.
+        # This prevents open-source LLMs that hallucinate unsupported severities (e.g., "config")
+        # from crashing the entire inline review parsing process.
         if comment["severity"].lower() not in VALID_SEVERITIES:
-            raise ValueError(
-                f"Comment [{i}] invalid severity: '{comment['severity']}'. "
-                f"Must be one of: {', '.join(VALID_SEVERITIES)}"
+            logger.warning(
+                f"Comment [{i}] invalid severity: '{comment['severity']}'. Coercing to 'other'."
             )
+            comment["severity"] = "other"
 
         # Validate line number is positive
         if comment["line"] <= 0:

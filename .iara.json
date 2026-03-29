@@ -26,8 +26,8 @@
     "review_mode": "inline"
   },
   "model": {
-    "provider": "anthropic",
-    "preferred": "claude-sonnet-4-5",
+    "provider": "groq",
+    "preferred": "llama-3.3-70b-versatile",
     "fallback_enabled": true
   },
   "language": "en"
