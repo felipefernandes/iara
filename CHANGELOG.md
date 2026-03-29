@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.13.0] - 2026-03-28
+
+### ✨ New Features
+
+#### Tech Lead Persona & CI/CD Red Light Pipeline Blocking
+- **Tech Lead Persona**: Evolved Iara's system prompt to act as a rigorous "Tech Lead", actively questioning architectural intentions and technical debt rather than just pointing out code syntax bugs.
+- **Dynamic Rule Respect**: Iara now heavily prioritizes the custom `focus_areas` and conventions defined in `.iara.json` ahead of generic LLM best practices.
+- **Strict Approval Policy**: Banned the hallucination of "✅ Iara Approved" if the LLM detects **any** issues (blocking or non-blocking).
+- **Proactive Pipeline Blocking (Red Light)**: Iara now acts as an active gatekeeper. If the LLM identifies critical bugs or high-severity security flaws, she will flag them (via `"is_blocking": true` in JSON or `[BLOCKER]` tag). The backend `post_comment.py` script intercepts these flags and forces a `sys.exit(1)`, cleanly failing the CI/CD pipeline step and blocking merges of dangerous code.
+- **Config-free Intelligence**: The "What should block the pipeline?" intelligence was delegated to the LLM side, preventing minor code smells from stalling developer pipelines unnecessarily.
+
+---
+
 ## [1.11.1] - 2026-03-28
 
 ### 🐛 Bug Fixes
