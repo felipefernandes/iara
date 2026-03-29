@@ -186,6 +186,28 @@ class TestInlineParser(unittest.TestCase):
         severities = [c["severity"] for c in result["comments"]]
         self.assertEqual(severities, ["bug", "security", "performance", "style", "other"])
 
+    def test_parse_with_hallucinated_text(self):
+        """Test parsing JSON embedded in markdown or conversational text."""
+        raw_output = '''Here is your code review.
+```json
+{
+  "summary": "Tested extraction",
+  "comments": []
+}
+```
+Thanks for using Groq!'''
+        result = parse_inline_review(raw_output)
+        self.assertEqual(result["summary"], "Tested extraction")
+        
+        # Test fallback with curly braces but no markdown wrapper
+        raw_output_2 = '''Sure, here it is:
+{
+  "summary": "Fallback extraction",
+  "comments": []
+}
+Have a nice day!'''
+        result_2 = parse_inline_review(raw_output_2)
+        self.assertEqual(result_2["summary"], "Fallback extraction")
 
 if __name__ == '__main__':
     unittest.main()
