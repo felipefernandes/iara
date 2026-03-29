@@ -146,6 +146,7 @@ Return your review as a **valid JSON object** with this exact structure:
       "file": "path/to/file.py",
       "line": 42,
       "severity": "bug",
+      "is_blocking": true,
       "message": "🐛 Detailed feedback in """ + lang_name + """ with context"
     }
   ]
@@ -158,24 +159,28 @@ Return your review as a **valid JSON object** with this exact structure:
 3. **Line numbers MUST match the NEW file (post-patch) line numbers**
 4. **Severity MUST be one of**: `bug`, `security`, `performance`, `style`, `other`
 5. **Message MUST start with emoji**: 🐛 for bugs, 🔒 for security, ⚡ for performance, ✨ for style, 💡 for other
-6. **If no issues found**: Return `{"summary": "✅ Iara Approved: No issues found", "comments": []}`
-7. **Response MUST be valid JSON** (no markdown fences, no extra text outside JSON)
+6. **is_blocking**: Set to `true` ONLY for CRITICAL severity issues (e.g., severe security risks, major logic bugs) that MUST block the merge. Minor bugs, performance, or styling must be `false`.
+7. **If no issues found**: Return `{"summary": "✅ Iara Approved: No issues found", "comments": []}`
+8. **NEVER use the 'Iara Approved' message if you found ANY issues.** The summary MUST reflect a rejected state if issues exist (e.g. `❌ Review Failed: Found critical security issues`).
+9. **Response MUST be valid JSON** (no markdown fences, no extra text outside JSON)
 
 **Example valid response:**
 ```json
 {
-  "summary": "Found 2 issues: 1 security vulnerability and 1 performance concern",
+  "summary": "❌ Found 2 issues: 1 critical security vulnerability and 1 performance concern",
   "comments": [
     {
       "file": "src/auth.py",
       "line": 15,
       "severity": "security",
+      "is_blocking": true,
       "message": "🔒 Potential SQL injection: user input not sanitized before query"
     },
     {
       "file": "src/utils.py",
       "line": 42,
       "severity": "performance",
+      "is_blocking": false,
       "message": "⚡ Inefficient loop: consider using list comprehension instead"
     }
   ]
@@ -193,6 +198,9 @@ Be direct and objective. Use emojis to categorize.
 - ⚡ **Performance**: Inefficiency.
 - 🧹 **Clean Code**: Readability suggestion (optional).
 
-✅ **If everything looks good**: "✅ **Iara Approved**: Robust code aligned with the """ + name + """ project. Ship it! 🧜‍♀️✨"
+🚨 **CRITICAL INSTRUCTIONS ON APPROVALS & BLOCKERS:**
+- **If you find a CRITICAL bug or high-severity security flaw** that MUST block the PR/MR, you MUST include the exact string `[BLOCKER]` anywhere in your review. Do not use this for minor bugs.
+- **NEVER output '✅ Iara Approved' if you found ANY issues** (blocking or non-blocking).
+- ✅ **ONLY if everything looks completely flawless**: "✅ **Iara Approved**: Robust code aligned with the """ + name + """ project. Ship it! 🧜‍♀️✨"
 """
         return base_prompt + format_instructions

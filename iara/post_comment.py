@@ -76,6 +76,9 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
 
             if success:
                 logger.info("Summary comment posted successfully")
+                if "[BLOCKER]" in review_text:
+                    logger.error("🚨 Blocking issues ([BLOCKER] tag) found in summary. Failing pipeline.")
+                    return 1
                 return 0
             else:
                 logger.error("Failed to post summary comment")
@@ -117,17 +120,25 @@ def post_review_comments(review_text: str, diff: str = "") -> int:
                 # Try to post inline comments
                 if comments:
                     success = adapter.post_inline_comments(commit_sha, comments)
+                    
+                    has_blockers = any(c.get("is_blocking", False) for c in comments)
 
                     if success:
                         logger.info(f"Successfully posted {len(comments)} inline comments")
                         # Also post a summary comment with overview
                         adapter.post_summary_comment(summary)
+                        if has_blockers:
+                            logger.error("🚨 Blocking issues (is_blocking=true) found in inline mode. Failing pipeline.")
+                            return 1
                         return 0
                     else:
                         logger.warning("Inline comment posting failed, falling back to summary mode")
                         # Fallback: format as summary with line numbers
                         fallback_text = format_inline_as_summary(data)
                         adapter.post_summary_comment(fallback_text)
+                        if has_blockers:
+                            logger.error("🚨 Blocking issues (is_blocking=true) found in inline fallback mode. Failing pipeline.")
+                            return 1
                         return 0
                 else:
                     # No issues found - post summary only
