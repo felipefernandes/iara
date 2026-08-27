@@ -45,6 +45,9 @@ Add a `ci` section to your `.iara.json` file:
   "ci": {
     "review_mode": "inline"
   },
+  "review": {
+    "min_confidence": 0.7
+  },
   "project": {
     "name": "My Project",
     "...": "..."
@@ -64,6 +67,10 @@ The platform is **auto-detected** from the CI environment (`GITHUB_ACTIONS` or `
 - **`review_mode`**: How Iara posts review feedback
   - `"summary"` — Single comment with all feedback (default)
   - `"inline"` — Individual comments anchored to specific lines
+
+- **`min_confidence`** *(optional)*: Minimum confidence score (0.0 to 1.0) for an inline comment to be posted
+  - Default: `0.7` - comments below this confidence are filtered out
+  - Set to `0.0` to post all comments regardless of confidence
 
 ### Required Permissions
 

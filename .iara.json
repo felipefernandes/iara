@@ -19,7 +19,8 @@
       ".assets",
       "openspec"
     ],
-    "max_diff_tokens": 12000
+    "max_diff_tokens": 12000,
+    "min_confidence": 0.7
   },
   "ci": {
     "platform": "github",
